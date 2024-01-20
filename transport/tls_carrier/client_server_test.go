@@ -2,13 +2,13 @@ package tls_carrier
 
 import (
 	"bufio"
-	_ "github.com/flashlabs/rootpath"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"testing"
 
+	_ "github.com/flashlabs/rootpath"
 	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/transport/direct"
