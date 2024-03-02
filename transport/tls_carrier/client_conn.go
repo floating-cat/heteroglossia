@@ -9,7 +9,7 @@ import (
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/transport/socks"
 	"github.com/floating-cat/heteroglossia/util/errors"
-	"github.com/floating-cat/heteroglossia/util/netutil"
+	"github.com/floating-cat/heteroglossia/util/ioutil"
 )
 
 type clientConn struct {
@@ -67,7 +67,7 @@ func (c *clientConn) ReadFrom(r io.Reader) (n int64, err error) {
 	var count int
 	if !c.hasWriteFirstPacket {
 		c.hasWriteFirstPacket = true
-		firstPacketBs := pool.Get(netutil.BufSize)
+		firstPacketBs := pool.Get(ioutil.BufSize)
 
 		for {
 			count, err = r.Read(firstPacketBs)
