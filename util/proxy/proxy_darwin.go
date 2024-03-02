@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/floating-cat/heteroglossia/transport"
+	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/util/cmd"
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/log"
@@ -12,7 +12,7 @@ import (
 
 // not work when macOS's 'System Settings -> VPN' is enabled
 
-func SetSystemProxy(host string, port uint16, authInfo *transport.HTTPSOCKSAuthInfo) (unsetProxy func(), err error) {
+func SetSystemProxy(host string, port uint16, authInfo *conf.HTTPSOCKSAuthInfo) (unsetProxy func(), err error) {
 	serviceName, err := currentNetworkServiceName()
 	if err != nil {
 		return nil, err

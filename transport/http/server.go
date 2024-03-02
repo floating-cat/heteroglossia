@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	pool "github.com/libp2p/go-buffer-pool"
+	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/ioutil"
@@ -14,7 +15,7 @@ import (
 )
 
 type Server struct {
-	AuthInfo *transport.HTTPSOCKSAuthInfo
+	AuthInfo *conf.HTTPSOCKSAuthInfo
 }
 
 var _ transport.Server = new(Server)
