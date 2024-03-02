@@ -11,6 +11,7 @@ import (
 	"github.com/floating-cat/heteroglossia/transport/direct"
 	"github.com/floating-cat/heteroglossia/transport/reject"
 	"github.com/floating-cat/heteroglossia/transport/tls_carrier"
+	"github.com/floating-cat/heteroglossia/util/contextutil"
 	"github.com/floating-cat/heteroglossia/util/log"
 	"github.com/floating-cat/heteroglossia/util/netutil"
 	"github.com/floating-cat/heteroglossia/util/updater"
@@ -80,7 +81,8 @@ func (c *Client) Dial(ctx context.Context, network string, addr *transport.Socke
 			return nil, err
 		}
 	}
-	log.Info("route", "access", addr.ToHostStr(), "policy", policy)
+	log.Info("route", contextutil.SourceTag, ctx.Value(contextutil.SourceTag),
+		contextutil.InboundTag, ctx.Value(contextutil.InboundTag), "access", addr.ToHostStr(), "policy", policy)
 	return nextClient.Dial(ctx, network, addr)
 }
 
