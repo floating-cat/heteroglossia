@@ -10,7 +10,7 @@ import (
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/transport/direct"
 	"github.com/floating-cat/heteroglossia/transport/reject"
-	"github.com/floating-cat/heteroglossia/transport/tls_carrier"
+	"github.com/floating-cat/heteroglossia/transport/tr_carrier"
 	"github.com/floating-cat/heteroglossia/util/contextutil"
 	"github.com/floating-cat/heteroglossia/util/log"
 	"github.com/floating-cat/heteroglossia/util/netutil"
@@ -76,7 +76,7 @@ func (c *client) Dial(ctx context.Context, network string, addr *transport.Socke
 	default:
 		proxyNode := c.outbounds[policy]
 		var err error
-		nextClient, err = tls_carrier.NewClient(proxyNode, c.tlsKeyLog)
+		nextClient, err = tr_carrier.NewClient(proxyNode, c.tlsKeyLog)
 		if err != nil {
 			return nil, err
 		}

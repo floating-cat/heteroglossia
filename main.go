@@ -15,7 +15,7 @@ import (
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/transport/http_socks"
 	"github.com/floating-cat/heteroglossia/transport/router"
-	"github.com/floating-cat/heteroglossia/transport/tls_carrier"
+	"github.com/floating-cat/heteroglossia/transport/tr_carrier"
 	"github.com/floating-cat/heteroglossia/util/cli"
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/log"
@@ -49,7 +49,7 @@ func main() {
 	routeClient := router.NewClient(&config.Route, config.Misc.RulesFileAutoUpdate, config.Outbounds, config.Misc.TLSKeyLog)
 	if config.Inbounds.Hg != nil {
 		go func() {
-			server := tls_carrier.NewServer(config.Inbounds.Hg, routeClient)
+			server := tr_carrier.NewServer(config.Inbounds.Hg, routeClient)
 			err = server.ListenAndServe(context.Background())
 			if err != nil {
 				log.Fatal("fail to start the hg server", err)
