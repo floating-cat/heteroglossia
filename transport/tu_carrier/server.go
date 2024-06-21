@@ -11,6 +11,7 @@ import (
 	"github.com/quic-go/quic-go"
 	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/transport"
+	"github.com/floating-cat/heteroglossia/util/contextutil"
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/ioutil"
 	"github.com/floating-cat/heteroglossia/util/log"
@@ -50,6 +51,7 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 
 	// TODO: tlsBadAuthFallbackServerPort
 	return netutil.ListenQUICAndAccept(ctx, s.hg.QUICPort, s.tlsConfig, quicServerConfig, func(quicConn quic.Connection) {
+		ctx = contextutil.WithSourceAndInboundValues(ctx, quicConn.RemoteAddr().String(), "QUIC carrier")
 		ctx, cancel := context.WithCancel(ctx)
 		serverConn := &serverConn{s, quicConn, make(chan struct{}), ctx, cancel}
 		go serverConn.handleAuthTimeout()
