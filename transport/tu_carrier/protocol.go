@@ -45,7 +45,7 @@ const (
 
 var (
 	authCommandReceiveTimeoutErrStr = fmt.Sprintf("fail to receive authentication command in %v", authTimeout)
-	heartbeatInterval               = netutil.KeepAlive
+	heartbeatInterval               = netutil.Interval
 
 	quicClientConfig = &quic.Config{
 		EnableDatagrams:       true,

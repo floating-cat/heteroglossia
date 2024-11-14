@@ -46,7 +46,6 @@ func (c *clientQUICConn) sendAuthenticationCommand() (err error) {
 
 func (c *clientQUICConn) sendHeartbeats() {
 	ticker := time.NewTicker(heartbeatInterval)
-	defer ticker.Stop()
 	for {
 		select {
 		case <-c.Context().Done():

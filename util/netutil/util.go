@@ -1,18 +1,23 @@
 package netutil
 
 import (
+	"net"
 	"net/http"
 	"time"
 )
 
-// Linux uses 7200 by default but we use a smaller value
+var (
+	// https://github.com/golang/go/issues/62254
+	// https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt
+	// Linux uses 7200sec for tcp_keepalive_time by default, but we use a smaller value
+	// Linux uses 75sec for tcp_keepalive_intvl by default so we use the same value
 
-var IdleTimeout = 720 * time.Second
+	IdleTimeout     = 720 * time.Second
+	Interval        = 75 * time.Second
+	KeepAliveConfig = net.KeepAliveConfig{Enable: true, Idle: IdleTimeout, Interval: Interval}
 
-// Linux uses 75 by default so we use the same value
-
-var KeepAlive = 75 * time.Second
-var httpClientTimeout = 60 * time.Second
+	httpClientTimeout = 60 * time.Second
+)
 
 func HTTPClient(tr *http.Transport) *http.Client {
 	return &http.Client{Transport: tr, Timeout: httpClientTimeout}

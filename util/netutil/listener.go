@@ -14,8 +14,7 @@ import (
 )
 
 var (
-	// TODO: https://github.com/golang/go/issues/62254#issuecomment-1791102281
-	listenConfig   = net.ListenConfig{KeepAlive: KeepAlive}
+	listenConfig   = net.ListenConfig{KeepAliveConfig: KeepAliveConfig}
 	serverListener = sync.Map{}
 
 	httpReadTimeout  = 10 * time.Second

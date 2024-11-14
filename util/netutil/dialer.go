@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	dialer               = net.Dialer{Timeout: dialerTimeout, KeepAlive: KeepAlive}
+	dialer               = net.Dialer{Timeout: dialerTimeout, KeepAliveConfig: KeepAliveConfig}
 	dialerTimeout        = 10 * time.Second
 	quicHandshakeTimeout = 10 * time.Second
 )
