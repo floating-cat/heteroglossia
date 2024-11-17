@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"net/netip"
 	"sync"
 
 	"github.com/floating-cat/heteroglossia/conf"
@@ -41,6 +42,8 @@ func NewClient(route *conf.Route, autoUpdateRuleFiles bool, outbounds map[string
 func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (net.Conn, error) {
 	c.routeRWMutex.RLock()
 	var policy string
+
+matchAgain:
 	switch addr.AddrType {
 	case transport.IPv4, transport.IPv6:
 		for _, rule := range c.route.Rules {
@@ -55,6 +58,12 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 				policy = rule.Policy
 				break
 			}
+		}
+		// some clients (e.g., Chrome SmartProxy extension) send IP addresses within domain types in the SOCKS protocol
+		ip, err := netip.ParseAddr(addr.Domain)
+		if err == nil {
+			addr = transport.NewSocketAddressByIP(&ip, addr.Port)
+			goto matchAgain
 		}
 	}
 	c.routeRWMutex.RUnlock()
