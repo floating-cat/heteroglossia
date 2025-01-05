@@ -68,7 +68,12 @@ matchAgain:
 	}
 	c.routeRWMutex.RUnlock()
 	if policy == "final" || policy == "" {
-		policy = c.route.Final
+		if c.route.Final == "" {
+			// default to direct for Final field
+			policy = "direct"
+		} else {
+			policy = c.route.Final
+		}
 	}
 
 	var nextClient transport.Client

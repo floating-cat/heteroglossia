@@ -10,13 +10,15 @@ import (
 )
 
 type Config struct {
-	Inbounds struct {
-		HTTPSOCKS *HTTPSOCKS `json:"http-socks"`
-		Hg        *Hg        `json:"hg"`
-	} `json:"inbounds"`
+	Inbounds  Inbounds              `json:"inbounds"`
 	Outbounds map[string]*ProxyNode `json:"outbounds" validate:"dive"`
 	Route     Route                 `json:"route"`
 	Misc      Misc                  `json:"misc"`
+}
+
+type Inbounds struct {
+	HTTPSOCKS *HTTPSOCKS `json:"http-socks"`
+	Hg        *Hg        `json:"hg"`
 }
 
 type HTTPSOCKS struct {
@@ -27,13 +29,15 @@ type HTTPSOCKS struct {
 	SystemProxy bool   `json:"system-proxy"`
 }
 
-func (httpSOCKS *HTTPSOCKS) ToHTTPSOCKSAuthInfo() *HTTPSOCKSAuthInfo {
-	return &HTTPSOCKSAuthInfo{Username: httpSOCKS.Username, Password: httpSOCKS.Password}
+func (httpSOCKS *HTTPSOCKS) UnmarshalJSON(data []byte) error {
+	type HTTPSOCKSAlias HTTPSOCKS
+	httpSOCKSAlias := (*HTTPSOCKSAlias)(httpSOCKS)
+	httpSOCKSAlias.Port = defaultHTTPSOCKSPort
+	return json.Unmarshal(data, httpSOCKSAlias)
 }
 
-type Password struct {
-	Raw    [16]byte
-	String string
+func (httpSOCKS *HTTPSOCKS) ToHTTPSOCKSAuthInfo() *HTTPSOCKSAuthInfo {
+	return &HTTPSOCKSAuthInfo{Username: httpSOCKS.Username, Password: httpSOCKS.Password}
 }
 
 type Hg struct {
@@ -46,6 +50,14 @@ type Hg struct {
 	QUICPort                  int             `json:"quic-port" validate:"gte=0,lte=65536"`
 }
 
+func (hg *Hg) UnmarshalJSON(data []byte) error {
+	type HgAlias Hg
+	hgAlias := (*HgAlias)(hg)
+	hgAlias.TLSPort = defaultTLSPort
+	hgAlias.QUICPort = defaultQUICPort
+	return json.Unmarshal(data, hgAlias)
+}
+
 type ProxyNode struct {
 	Host        string   `json:"host" validate:"ip|hostname_rfc1123"`
 	Password    Password `json:"password" validate:"required"`
@@ -55,9 +67,38 @@ type ProxyNode struct {
 	QUICPort    int      `json:"quic-port" validate:"gte=0,lte=65536"`
 }
 
+type Password struct {
+	Raw    [16]byte
+	String string
+}
+
+func (pw *Password) UnmarshalJSON(data []byte) error {
+	var pwStr string
+	err := json.Unmarshal(data, &pwStr)
+	if err != nil {
+		return errors.New(err, "fail to parse the 'password' field")
+	}
+
+	bs, err := hex.DecodeString(pwStr)
+	if err != nil || len(bs) != 16 {
+		return errors.New("the password should be 32 hex characters in length")
+	}
+	pw.Raw = [16]byte(bs)
+	pw.String = pwStr
+	return nil
+}
+
+func (node *ProxyNode) UnmarshalJSON(data []byte) error {
+	type ProxyNodeAlias ProxyNode
+	proxyNodeAlias := (*ProxyNodeAlias)(node)
+	proxyNodeAlias.TLSPort = defaultTLSPort
+	proxyNodeAlias.QUICPort = defaultQUICPort
+	return json.Unmarshal(data, proxyNodeAlias)
+}
+
 type Route struct {
 	Rules Rules  `json:"rules" validate:"dive"`
-	Final string `json:"final" validate:"required"`
+	Final string `json:"final"`
 }
 
 type Rules []Rule
@@ -76,9 +117,33 @@ type Misc struct {
 	ProfilingPort       int  `json:"profiling-port" validate:"gte=0,lte=65536"`
 }
 
+func (misc *Misc) UnmarshalJSON(data []byte) error {
+	// https://stackoverflow.com/a/41102996
+	type MiscAlias Misc
+	miscAlias := (*MiscAlias)(misc)
+	miscAlias.ProfilingPort = defaultProfilingPort
+	return json.Unmarshal(data, miscAlias)
+}
+
 type TLSCertKeyPair struct {
 	CertFile string
 	KeyFile  string
+}
+
+func (pair *TLSCertKeyPair) UnmarshalJSON(data []byte) error {
+	var certKeyStr string
+	err := json.Unmarshal(data, &certKeyStr)
+	if err != nil {
+		return errors.New(err, "fail to parse the 'tls-cert-key-pair' field")
+	}
+
+	certKeyPairs := strings.Split(certKeyStr, " ")
+	if len(certKeyPairs) != 2 {
+		return errors.New("the certificate and key file's paths must be separated by whitespace, e.g. 'tls-cert-key-pair = \"tls_cert.pem tls_key.pem\"'")
+	}
+	pair.CertFile = certKeyPairs[0]
+	pair.KeyFile = certKeyPairs[1]
+	return nil
 }
 
 func (rules Rules) setupRulesData() error {
@@ -120,59 +185,3 @@ const (
 	defaultQUICPort      = 443
 	defaultProfilingPort = 6060
 )
-
-func (httpSOCKS *HTTPSOCKS) UnmarshalJSON(data []byte) error {
-	// https://stackoverflow.com/a/41102996
-	type HTTPSOCKSAlias HTTPSOCKS
-	httpSOCKSAlias := (*HTTPSOCKSAlias)(httpSOCKS)
-	httpSOCKSAlias.Port = defaultHTTPSOCKSPort
-	return json.Unmarshal(data, httpSOCKSAlias)
-}
-
-func (hg *Hg) UnmarshalJSON(data []byte) error {
-	type HgAlias Hg
-	hgAlias := (*HgAlias)(hg)
-	hgAlias.TLSPort = defaultTLSPort
-	hgAlias.QUICPort = defaultQUICPort
-	return json.Unmarshal(data, hgAlias)
-}
-
-func (node *ProxyNode) UnmarshalJSON(data []byte) error {
-	type ProxyNodeAlias ProxyNode
-	proxyNodeAlias := (*ProxyNodeAlias)(node)
-	proxyNodeAlias.TLSPort = defaultTLSPort
-	proxyNodeAlias.QUICPort = defaultQUICPort
-	return json.Unmarshal(data, proxyNodeAlias)
-}
-
-func (pw *Password) UnmarshalJSON(data []byte) error {
-	var pwStr string
-	err := json.Unmarshal(data, &pwStr)
-	if err != nil {
-		return errors.New(err, "fail to parse the 'password' field")
-	}
-
-	bs, err := hex.DecodeString(pwStr)
-	if err != nil || len(bs) != 16 {
-		return errors.New("the password should be 32 hex characters in length")
-	}
-	pw.Raw = [16]byte(bs)
-	pw.String = pwStr
-	return nil
-}
-
-func (pair *TLSCertKeyPair) UnmarshalJSON(data []byte) error {
-	var certKeyStr string
-	err := json.Unmarshal(data, &certKeyStr)
-	if err != nil {
-		return errors.New(err, "fail to parse the 'tls-cert-key-pair' field")
-	}
-
-	certKeyPairs := strings.Split(certKeyStr, " ")
-	if len(certKeyPairs) != 2 {
-		return errors.New("the certificate and key file's paths must be separated by whitespace, e.g. 'tls-cert-key-pair = \"tls_cert.pem tls_key.pem\"'")
-	}
-	pair.CertFile = certKeyPairs[0]
-	pair.KeyFile = certKeyPairs[1]
-	return nil
-}

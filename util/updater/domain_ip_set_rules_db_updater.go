@@ -24,14 +24,10 @@ func UpdateRuleFile(client *http.Client) (bool, error) {
 		return false, nil
 	}
 
-	err = updateRulesFiles(client)
+	log.Info("start to update rules' files")
+	err = updateFile(client, rule.DomainIPSetRulesDBFilename, domainIPSetRulesFileURL, domainIPSetRulesFileSHA256SumURL)
 	if err != nil {
 		return false, err
 	}
 	return true, nil
-}
-
-func updateRulesFiles(client *http.Client) error {
-	log.Info("start to update rules' files")
-	return updateFile(client, rule.DomainIPSetRulesDBFilename, domainIPSetRulesFileURL, domainIPSetRulesFileSHA256SumURL)
 }
