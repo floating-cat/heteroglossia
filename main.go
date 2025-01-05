@@ -25,16 +25,15 @@ import (
 )
 
 func main() {
+	configFileDir := filepath.Dir(cli.Parse().ConfigFile)
+	err := os.Chdir(configFileDir)
+	if err != nil {
+		log.WarnWithError("fail to change the current working directory to '%v'", err, configFileDir)
+	}
 	config, err := conf.Parse(cli.Parse().ConfigFile)
 	if err != nil {
 		fmt.Println(err)
 		return
-	}
-
-	configFileDir := filepath.Dir(cli.Parse().ConfigFile)
-	err = os.Chdir(configFileDir)
-	if err != nil {
-		log.WarnWithError("fail to change the current working directory to '%v'", err, configFileDir)
 	}
 
 	log.SetVerbose(config.Misc.VerboseLog)
