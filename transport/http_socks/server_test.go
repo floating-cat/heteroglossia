@@ -1,7 +1,6 @@
 package http_socks
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -120,7 +119,7 @@ func startProxyServer(t *testing.T, authInfo *conf.HTTPSOCKSAuthInfo) error {
 	} else {
 		httpSOCKS = &conf.HTTPSOCKS{Username: authInfo.Username, Password: authInfo.Password}
 	}
-	return (NewServer(httpSOCKS, direct.NewClient()).(*server)).Serve(context.Background(), rwc)
+	return (NewServer(httpSOCKS, direct.NewClient()).(*server)).Serve(t.Context(), rwc)
 }
 
 func startClient(authInfo *conf.HTTPSOCKSAuthInfo) error {

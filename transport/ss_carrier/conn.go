@@ -149,10 +149,7 @@ func (c *conn) writeClientFirstPayload(payload []byte) (int, error) {
 		return 0, errors.WithStack(err)
 	}
 	if payloadSize < 0 {
-		_, err = randutil.RandBytes(reqVarLenHeaderBs[reqPaddingOrPayloadStart : reqPaddingOrPayloadStart+paddingSize])
-		if err != nil {
-			return 0, err
-		}
+		_ = randutil.RandBytes(reqVarLenHeaderBs[reqPaddingOrPayloadStart : reqPaddingOrPayloadStart+paddingSize])
 	} else {
 		reqVarLenHeaderBuf.Write(payload[:payloadSize])
 	}
@@ -189,10 +186,7 @@ func (c *conn) writeServerFirstPayload(payload []byte) (int, error) {
 	respSaltWithFixedLenHeaderAndPayloadEncryptedBs := pool.Get(respPayloadEncryptedStart + payloadSize + c.aeadOverhead)
 	defer pool.Put(respSaltWithFixedLenHeaderAndPayloadEncryptedBs)
 	respSaltWithFixedLenHeaderAndPayloadEncryptedBuf := bytes.NewBuffer(respSaltWithFixedLenHeaderAndPayloadEncryptedBs[:0])
-	serverSalt, err := generateSalt(c.preSharedKey)
-	if err != nil {
-		return 0, err
-	}
+	serverSalt := generateSalt(c.preSharedKey)
 	respSaltWithFixedLenHeaderAndPayloadEncryptedBuf.Write(serverSalt)
 
 	// Response fixed-length header
@@ -202,7 +196,7 @@ func (c *conn) writeServerFirstPayload(payload []byte) (int, error) {
 	// |  1B  | u64be unix epoch |     16/32B     |  u16be |
 	// +------+------------------+----------------+--------+
 	respSaltWithFixedLenHeaderAndPayloadEncryptedBuf.WriteByte(serverStreamHeaderType)
-	err = binary.Write(respSaltWithFixedLenHeaderAndPayloadEncryptedBuf, binary.BigEndian, uint64(time.Now().Unix()))
+	err := binary.Write(respSaltWithFixedLenHeaderAndPayloadEncryptedBuf, binary.BigEndian, uint64(time.Now().Unix()))
 	if err != nil {
 		return 0, errors.WithStack(err)
 	}

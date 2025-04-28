@@ -11,7 +11,7 @@ import (
 	"lukechampine.com/blake3"
 )
 
-func generateSalt(preSharedKey []byte) ([]byte, error) {
+func generateSalt(preSharedKey []byte) []byte {
 	saltSize := len(preSharedKey)
 	return randutil.RandNBytes(saltSize)
 }

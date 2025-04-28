@@ -3,19 +3,17 @@ package randutil
 import (
 	"crypto/rand"
 	mathRand "math/rand/v2"
-
-	"github.com/floating-cat/heteroglossia/util/errors"
 )
 
-func RandNBytes(n int) ([]byte, error) {
+func RandNBytes(n int) []byte {
 	bs := make([]byte, n)
-	n, err := rand.Read(bs)
-	return bs, errors.WithStack(err)
+	n, _ = rand.Read(bs)
+	return bs
 }
 
-func RandBytes(bs []byte) (int, error) {
-	n, err := rand.Read(bs)
-	return n, errors.WithStack(err)
+func RandBytes(bs []byte) int {
+	n, _ := rand.Read(bs)
+	return n
 }
 
 // forked from https://stackoverflow.com/a/6737362

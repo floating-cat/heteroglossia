@@ -28,10 +28,7 @@ func NewClient(proxyNode *conf.ProxyNode) transport.Client {
 }
 
 func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (net.Conn, error) {
-	clientSalt, err := generateSalt(c.preSharedKey)
-	if err != nil {
-		return nil, err
-	}
+	clientSalt := generateSalt(c.preSharedKey)
 	c.customFirstReqPrefixes(clientSalt)
 
 	hostWithPort := c.proxyNode.Host + ":" + strconv.Itoa(c.proxyNode.TCPPort)
