@@ -6,12 +6,12 @@ import (
 	"net"
 	"net/http"
 
-	pool "github.com/libp2p/go-buffer-pool"
 	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/ioutil"
 	"github.com/floating-cat/heteroglossia/util/log"
+	pool "github.com/libp2p/go-buffer-pool"
 )
 
 type Server struct {

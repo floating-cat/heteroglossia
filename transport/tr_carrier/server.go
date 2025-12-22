@@ -9,7 +9,6 @@ import (
 	"net/textproto"
 	"strconv"
 
-	pool "github.com/libp2p/go-buffer-pool"
 	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/transport/socks"
@@ -18,6 +17,7 @@ import (
 	"github.com/floating-cat/heteroglossia/util/ioutil"
 	"github.com/floating-cat/heteroglossia/util/log"
 	"github.com/floating-cat/heteroglossia/util/netutil"
+	pool "github.com/libp2p/go-buffer-pool"
 )
 
 type server struct {

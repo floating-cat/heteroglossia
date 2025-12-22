@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/quic-go/quic-go"
 	"github.com/floating-cat/heteroglossia/util/errors"
+	"github.com/quic-go/quic-go"
 )
 
 var (
@@ -92,7 +92,7 @@ func ListenTLSAndAccept(ctx context.Context, addr string, tlsConfig *tls.Config,
 }
 
 func ListenQUICAndAccept(ctx context.Context, port int, tlsConfig *tls.Config, quicConfig *quic.Config,
-	connHandler func(quicConn quic.Connection)) error {
+	connHandler func(quicConn *quic.Conn)) error {
 	udpConn, err := net.ListenUDP("udp", &net.UDPAddr{Port: port})
 	if err != nil {
 		return errors.WithStack(err)

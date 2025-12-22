@@ -5,11 +5,11 @@ import (
 	"io"
 	"net"
 
-	pool "github.com/libp2p/go-buffer-pool"
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/transport/socks"
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/ioutil"
+	pool "github.com/libp2p/go-buffer-pool"
 )
 
 type clientConn struct {

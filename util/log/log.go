@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"sync/atomic"
 
-	"github.com/mdobak/go-xerrors"
 	"github.com/floating-cat/heteroglossia/util/osutil"
+	"github.com/mdobak/go-xerrors"
 )
 
 var verbose = atomic.Bool{}

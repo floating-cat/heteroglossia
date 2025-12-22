@@ -6,8 +6,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/quic-go/quic-go"
 	"github.com/floating-cat/heteroglossia/util/errors"
+	"github.com/quic-go/quic-go"
 )
 
 var (
@@ -36,7 +36,7 @@ func DialTLS(ctx context.Context, addr string, tlsConfig *tls.Config) (*tls.Conn
 	return tls.Client(conn, tlsConfig), nil
 }
 
-func DialQUIC(ctx context.Context, addr string, tlsConf *tls.Config, quicConf *quic.Config) (quic.Connection, error) {
+func DialQUIC(ctx context.Context, addr string, tlsConf *tls.Config, quicConf *quic.Config) (*quic.Conn, error) {
 	ctx, cancel := context.WithTimeout(ctx, quicHandshakeTimeout)
 	defer cancel()
 	return errors.WithStack2(quic.DialAddr(ctx, addr, tlsConf, quicConf))

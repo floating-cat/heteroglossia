@@ -1,7 +1,7 @@
 package updater
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"net/http"
@@ -61,9 +61,8 @@ func latestTagVersion(client *http.Client) (string, error) {
 		return "", errors.Newf("bad status %v when checking the latest heteroglossia version", resp.Status)
 	}
 
-	decoder := json.NewDecoder(resp.Body)
-	latest := new(latest)
-	err = decoder.Decode(latest)
+	var latest latest
+	err = json.UnmarshalRead(resp.Body, &latest)
 	if err != nil {
 		return "", errors.WithStack(err)
 	}

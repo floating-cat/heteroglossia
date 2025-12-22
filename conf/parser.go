@@ -1,15 +1,15 @@
 package conf
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	stdErrors "errors"
 	"path/filepath"
 	"reflect"
 	"strings"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/ioutil"
+	"github.com/go-playground/validator/v10"
 )
 
 var validate = validator.New()

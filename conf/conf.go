@@ -2,7 +2,7 @@ package conf
 
 import (
 	"encoding/hex"
-	"encoding/json"
+	"encoding/json/v2"
 	"strings"
 
 	libRule "github.com/floating-cat/heteroglossia/conf/rule"
@@ -25,7 +25,7 @@ type HTTPSOCKS struct {
 	Host        string `json:"host" validate:"ip|hostname_rfc1123"`
 	Port        uint16 `json:"port" validate:"gte=0,lte=65536"`
 	Username    string `json:"username"`
-	Password    string `json:"password"`
+	Password    string `json:"password,secure"`
 	SystemProxy bool   `json:"system-proxy"`
 }
 
@@ -42,7 +42,7 @@ func (httpSOCKS *HTTPSOCKS) ToHTTPSOCKSAuthInfo() *HTTPSOCKSAuthInfo {
 
 type Hg struct {
 	Host                      string          `json:"host" validate:"ip|hostname_rfc1123"`
-	Password                  Password        `json:"password" validate:"required"`
+	Password                  Password        `json:"password,secure" validate:"required"`
 	TCPPort                   int             `json:"tcp-port" validate:"gte=0,lte=65536"`
 	TLSPort                   int             `json:"tls-port" validate:"gte=0,lte=65536"`
 	TLSCertKeyPair            *TLSCertKeyPair `json:"tls-cert-key-pair"`
@@ -60,7 +60,7 @@ func (hg *Hg) UnmarshalJSON(data []byte) error {
 
 type ProxyNode struct {
 	Host        string   `json:"host" validate:"ip|hostname_rfc1123"`
-	Password    Password `json:"password" validate:"required"`
+	Password    Password `json:"password,secure" validate:"required"`
 	TCPPort     int      `json:"tcp-port" validate:"gte=0,lte=65536"`
 	TLSPort     int      `json:"tls-port" validate:"gte=0,lte=65536"`
 	TLSCertFile string   `json:"tls-cert"`
