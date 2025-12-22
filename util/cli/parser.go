@@ -23,7 +23,7 @@ type Args struct {
 
 const AppName = "heteroglossia"
 
-// without v prefix
+// without the v prefix
 const version = "(unknown version)"
 
 func (Args) Version() string {

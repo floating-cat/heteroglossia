@@ -105,9 +105,9 @@ func (s *server) Serve(ctx context.Context, conn net.Conn) error {
 			ctx := contextutil.WithValues(ctx, contextutil.InboundTag, "TLS carrier with wrong auth")
 			fallbackAddr := transport.NewSocketAddressByIP(&ip, s.tlsBadAuthFallbackServerPort)
 			return transport.ForwardTCP(ctx, fallbackAddr, ioutil.NewBytesReadPreloadConn(unrelatedBs, conn), s.targetClient)
-		} else {
-			isTrojan = true
 		}
+
+		isTrojan = true
 	}
 
 	commandType, err := ioutil.Read1(bufReader)

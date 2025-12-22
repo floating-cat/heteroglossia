@@ -24,17 +24,17 @@ func newDomainFullAndSuffixMatcher() domainFullAndSuffixMatcher {
 }
 
 func (matcher domainFullAndSuffixMatcher) addDomainFullRule(domain string) {
-	matcher.addDomainRule(domain, full)
+	matcher.addDomainFullOrSuffixRule(domain, full)
 }
 
 func (matcher domainFullAndSuffixMatcher) addDomainSuffixRule(domain string) {
-	matcher.addDomainRule(domain, suffix)
+	matcher.addDomainFullOrSuffixRule(domain, suffix)
 }
 
-func (matcher domainFullAndSuffixMatcher) addDomainRule(domain string, matchType match) {
+func (matcher domainFullAndSuffixMatcher) addDomainFullOrSuffixRule(domain string, matchType match) {
+	// domain URLs are case-insensitive
 	segments := strings.Split(strings.ToLower(domain), ".")
 	loopedDomainMatcher := matcher
-	matchSuffix := false
 	for i := len(segments) - 1; i >= 1; i-- {
 		segment := segments[i]
 		nextSegment, ok := loopedDomainMatcher[segment]
@@ -45,8 +45,7 @@ func (matcher domainFullAndSuffixMatcher) addDomainRule(domain string, matchType
 			loopedDomainMatcher[segment] = nextSegment
 		} else {
 			if nextSegment.match == suffix {
-				matchSuffix = true
-				break
+				return
 			}
 		}
 
@@ -54,9 +53,6 @@ func (matcher domainFullAndSuffixMatcher) addDomainRule(domain string, matchType
 			nextSegment.domainMatcher = domainFullAndSuffixMatcher{}
 		}
 		loopedDomainMatcher = nextSegment.domainMatcher
-	}
-	if matchSuffix {
-		return
 	}
 
 	last := segments[0]
@@ -88,6 +84,9 @@ func (matcher domainFullAndSuffixMatcher) match(domain string) bool {
 		}
 		loopedDomainMatcher = nextSegment.domainMatcher
 		loopedSegment = nextSegment
+	}
+	if loopedSegment == nil {
+		panic("domain can't be empty")
 	}
 	return loopedSegment.match == full
 }

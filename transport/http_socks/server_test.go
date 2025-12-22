@@ -103,10 +103,10 @@ func startProxyServer(t *testing.T, authInfo *conf.HTTPSOCKSAuthInfo) error {
 	if err != nil {
 		return err
 	}
-	defer func(ln net.Listener) {
+	defer func() {
 		err := ln.Close()
 		assert.Nil(t, err)
-	}(ln)
+	}()
 
 	rwc, err := ln.Accept()
 	if err != nil {

@@ -72,6 +72,9 @@ func updateFile(client *http.Client, filePath, fileURL, fileSHA256SumURL string)
 			return err
 		}
 		newDownloadHgBinaryFile, err := os.Open(newDownloadHgBinaryPath)
+		defer func() {
+			_ = newDownloadHgBinaryFile.Close()
+		}()
 		if err != nil {
 			return err
 		}
@@ -92,6 +95,9 @@ func updateFile(client *http.Client, filePath, fileURL, fileSHA256SumURL string)
 func downloadFile(client *http.Client, url string) (*os.File, error) {
 	filename := path.Base(url)
 	file, err := os.CreateTemp("", filename)
+	defer func() {
+		_ = file.Close()
+	}()
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -100,9 +106,9 @@ func downloadFile(client *http.Client, url string) (*os.File, error) {
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	if resp.StatusCode != http.StatusOK {
 		return nil, errors.Newf("bad status %v when downloading the %v file", resp.Status, filename)
 	}
@@ -153,9 +159,9 @@ func extractHgBinaryTarGz(tarGzFile *os.File) (string, error) {
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
-	defer func(gzipReader *gzip.Reader) {
+	defer func() {
 		_ = gzipReader.Close()
-	}(gzipReader)
+	}()
 
 	tarReader := tar.NewReader(gzipReader)
 	var header *tar.Header
@@ -213,9 +219,9 @@ func replaceFile(src *os.File, dstFilepath string) error {
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	defer func(dstFile *os.File) {
-		_ = dstFile.Close()
-	}(dstNewFilepath)
+	defer func() {
+		_ = dstNewFilepath.Close()
+	}()
 	_, err = io.Copy(dstNewFilepath, src)
 	if err != nil {
 		return errors.WithStack(err)

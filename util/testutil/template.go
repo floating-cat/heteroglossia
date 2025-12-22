@@ -32,6 +32,7 @@ func TestClientServerConnection(t *testing.T, newClient func(proxyNode *conf.Pro
 	defer server.Close()
 	httpClient := transport.HTTPClientThroughRouter(client)
 	resp, err := httpClient.Get(server.URL)
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Nil(t, err)
 	assert.True(t, resp.StatusCode >= 200 && resp.StatusCode < 300)

@@ -62,9 +62,9 @@ func (store *DomainIPSetRulesQueryStore) queryDomainRulesByTag(tag string, consu
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	defer func(rows *sql.Rows) {
+	defer func() {
 		_ = rows.Close()
-	}(rows)
+	}()
 
 	atLeastOneRow := false
 	var domainTypeID int
@@ -100,25 +100,31 @@ func (store *DomainIPSetRulesQueryStore) queryIpSetRulesByTag(tag string, consum
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	defer func(rows *sql.Rows) {
+	defer func() {
 		_ = rows.Close()
-	}(rows)
+	}()
 
 	atLeastOneRow := false
 	var cidrTypeID int
 	var cidrs []byte
 	for rows.Next() {
-		atLeastOneRow = true
 		err := rows.Scan(&cidrTypeID, &cidrs)
 		if err != nil {
 			return errors.WithStack(err)
 		}
+		atLeastOneRow = true
 
 		switch cidrTypeID {
 		case 0:
-			return consumeCIDRsBytes(cidrs, true, tag, consumer)
+			err := consumeCIDRsBytes(cidrs, true, tag, consumer)
+			if err != nil {
+				return err
+			}
 		case 1:
-			return consumeCIDRsBytes(cidrs, false, tag, consumer)
+			err := consumeCIDRsBytes(cidrs, false, tag, consumer)
+			if err != nil {
+				return err
+			}
 		default:
 			return errors.Newf("invalid CIDR type %v when querying IP set rules by tag 'ip-set-tag/cn/%v'", cidrTypeID, tag)
 		}

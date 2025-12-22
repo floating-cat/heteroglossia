@@ -11,10 +11,6 @@ import (
 
 var verbose = atomic.Bool{}
 
-func Debug(msg string, args ...any) {
-	slog.Debug(msg, args...)
-}
-
 var Info = slog.Info
 
 func InfoWithError(msg string, err error, args ...any) {

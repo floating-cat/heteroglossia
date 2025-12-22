@@ -55,7 +55,7 @@ func newServerConn(tcpConn *net.TCPConn, preSharedKey []byte, aeadOverhead int, 
 const (
 	maxPaddingSize = 900
 	// https://github.com/Shadowsocks-NET/shadowsocks-specs/blob/60c3f41461a303ba3d7f8837065294699b1e0526/2022-1-shadowsocks-2022-edition.md#312-format
-	// A payload chunk can have up to 0xFFFF (65535) bytes of unencrypted payload.
+	// A payload chunk can have up to 0xFFFF (65,535) bytes of unencrypted payload.
 	maxChunkSize           = 65535
 	clientStreamHeaderType = 0
 	serverStreamHeaderType = 1
@@ -215,14 +215,8 @@ func (c *conn) writeServerFirstPayload(payload []byte) (int, error) {
 
 	respFixedLenHeaderEncryptedBs := respSaltWithFixedLenHeaderAndPayloadEncryptedBs[saltSize:]
 	c.encryptInPlace(respFixedLenHeaderEncryptedBs[:reqFixedLenHeaderSize+saltSize])
-	if err != nil {
-		return 0, err
-	}
 	respVarLenHeaderEncryptedBs := respSaltWithFixedLenHeaderAndPayloadEncryptedBs[respPayloadEncryptedStart:]
 	c.encryptInPlace(respVarLenHeaderEncryptedBs[:payloadSize])
-	if err != nil {
-		return 0, err
-	}
 	_, err = c.TCPConn.Write(respSaltWithFixedLenHeaderAndPayloadEncryptedBs)
 	if err != nil {
 		return 0, err

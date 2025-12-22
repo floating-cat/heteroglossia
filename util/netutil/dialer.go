@@ -7,13 +7,11 @@ import (
 	"time"
 
 	"github.com/floating-cat/heteroglossia/util/errors"
-	"github.com/quic-go/quic-go"
 )
 
 var (
-	dialer               = net.Dialer{Timeout: dialerTimeout, KeepAliveConfig: KeepAliveConfig}
-	dialerTimeout        = 10 * time.Second
-	quicHandshakeTimeout = 10 * time.Second
+	dialer        = net.Dialer{Timeout: dialerTimeout, KeepAliveConfig: KeepAliveConfig}
+	dialerTimeout = 10 * time.Second
 )
 
 func dial(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -29,15 +27,10 @@ func DialTCP(ctx context.Context, addr string) (*net.TCPConn, error) {
 }
 
 func DialTLS(ctx context.Context, addr string, tlsConfig *tls.Config) (*tls.Conn, error) {
+	//goland:noinspection GoResourceLeak
 	conn, err := dial(ctx, "tcp", addr)
 	if err != nil {
 		return nil, err
 	}
 	return tls.Client(conn, tlsConfig), nil
-}
-
-func DialQUIC(ctx context.Context, addr string, tlsConf *tls.Config, quicConf *quic.Config) (*quic.Conn, error) {
-	ctx, cancel := context.WithTimeout(ctx, quicHandshakeTimeout)
-	defer cancel()
-	return errors.WithStack2(quic.DialAddr(ctx, addr, tlsConf, quicConf))
 }

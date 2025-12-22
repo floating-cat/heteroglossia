@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/floating-cat/heteroglossia/util/errors"
-	"github.com/quic-go/quic-go"
 )
 
 var (
@@ -89,44 +88,6 @@ func ListenTLSAndAccept(ctx context.Context, addr string, tlsConfig *tls.Config,
 		tlsLn := tls.NewListener(ln, tlsConfig)
 		return accept(tlsLn, connHandler)
 	}, nil)
-}
-
-func ListenQUICAndAccept(ctx context.Context, port int, tlsConfig *tls.Config, quicConfig *quic.Config,
-	connHandler func(quicConn *quic.Conn)) error {
-	udpConn, err := net.ListenUDP("udp", &net.UDPAddr{Port: port})
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	// we can use 0.5-RTT here because we don't use TLS client authentication
-	ln, err := quic.ListenEarly(udpConn, tlsConfig, quicConfig)
-	// use 'context.WithCancel' to avoid memory leak in the below goroutine
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	go func() {
-		<-ctx.Done()
-		_ = ln.Close()
-	}()
-	addServerListener(ln)
-	defer removeServerListener(ln)
-
-	// https://quic-go.net/docs/quic/server/#using-the-convenience-functions
-	// closing a listener created using these shortcuts causes all accepted connections to be immediately terminated,
-	// so no need to close the 'conn' additionally
-	for {
-		conn, err := ln.Accept(ctx)
-		if err != nil {
-			return errors.WithStack(err)
-		}
-
-		select {
-		case <-conn.HandshakeComplete():
-			// handshake completed
-			connHandler(conn)
-		case <-conn.Context().Done():
-			// connection closed before handshake completion, e.g., due to handshake failure
-		}
-	}
 }
 
 func StopAllServerListeners() {
