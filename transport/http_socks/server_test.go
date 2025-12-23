@@ -17,12 +17,13 @@ import (
 const (
 	proxyServerAddr = "[::1]:2080"
 	webServerPort   = ":2081"
+	webServerAddr   = "http://127.0.0.1" + webServerPort
 )
 
 var (
-	proxyProtocolPrefix string
-	accessURL           string
-	accessAddrs         = []string{"127.0.0.1", "[::ffff:127.0.0.1]", "[::1]", "localhost"}
+	proxyProtocolPrefix   string
+	webServerHostWithPort string
+	webServerHosts        = []string{"127.0.0.1", "[::ffff:127.0.0.1]", "[::1]", "localhost"}
 
 	authInfo      = &conf.HTTPSOCKSAuthInfo{Username: "username", Password: "password"}
 	wrongAuthInfo = &conf.HTTPSOCKSAuthInfo{Username: "username", Password: "password1"}
@@ -43,9 +44,9 @@ func TestProxyConnectionHandle(t *testing.T) {
 
 	for _, i := range proxyProtocolInfo {
 		proxyProtocolPrefix = i.proxyProtocolPrefix
-		for _, addr := range accessAddrs {
-			accessURL = "http://" + addr + webServerPort
-			name := addr + " via " + i.proxyProtocolName
+		for _, host := range webServerHosts {
+			webServerHostWithPort = host + webServerPort
+			name := host + " via " + i.proxyProtocolName
 			t.Run(name, testHandleConnectionWithoutAuthInfo)
 			t.Run(name, testHandleConnectionWithEmptyAuthInfo)
 			t.Run(name, testHandleConnectionWithAuthInfo)
@@ -130,8 +131,8 @@ func startClient(authInfo *conf.HTTPSOCKSAuthInfo) error {
 		proxyUser = fmt.Sprintf("-U %v:%v", authInfo.Username, authInfo.Password)
 	}
 
-	cmd := fmt.Sprintf("curl -fx %v %v %v", proxyProtocolPrefix+proxyServerAddr, proxyUser, accessURL)
-	args := strings.Fields(cmd)
+	cmd := fmt.Sprintf("curl -fx %v %v %v -H", proxyProtocolPrefix+proxyServerAddr, proxyUser, webServerAddr)
+	args := append(strings.Fields(cmd), fmt.Sprintf("Host: %v", webServerHostWithPort))
 	_, err := exec.Command(args[0], args[1:]...).Output()
 	return err
 }
@@ -160,12 +161,12 @@ func parRun[X, Y any](f1 func() X, f2 func() Y) (X, Y) {
 		case yResult := <-y:
 			return xResult, yResult
 		case <-timeout:
-			panic("timeout when running f2 function")
+			panic(fmt.Sprintf("timeout when running f2 function while f1 function finished with '%v'", xResult))
 		}
 	case <-timeout:
 		select {
 		case yResult := <-y:
-			panic(fmt.Sprintf("timeout when running f1 function while f2 function finshed with %v", yResult))
+			panic(fmt.Sprintf("timeout when running f1 function while f2 function finished with '%v'", yResult))
 		default:
 			panic("timeout when running f1 and f2 functions")
 		}
