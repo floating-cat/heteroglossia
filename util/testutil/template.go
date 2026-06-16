@@ -14,23 +14,23 @@ import (
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/transport/direct"
 	"github.com/floating-cat/heteroglossia/util/ioutil"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 func TestClientServerConnection(t *testing.T, newClient func(proxyNode *conf.ProxyNode) (transport.Client, error),
 	newServer func(hg *conf.Hg, targetClient transport.Client) transport.Server) {
 	hg, err := newHg()
-	assert.Nil(t, err)
-	assert.NotNil(t, hg)
+	must.NoError(t, err)
+	must.NotNil(t, hg)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {
 		server := newServer(hg, direct.NewClient())
 		err := server.ListenAndServe(ctx)
-		assert.Nil(t, err)
+		must.NoError(t, err)
 	}()
 	client, err := newClient(toProxyNode(hg))
-	assert.Nil(t, err)
+	must.NoError(t, err)
 
 	server := startWebServer()
 	defer server.Close()
@@ -38,8 +38,8 @@ func TestClientServerConnection(t *testing.T, newClient func(proxyNode *conf.Pro
 	resp, err := httpClient.Get(server.URL)
 	defer func() { _ = resp.Body.Close() }()
 
-	assert.Nil(t, err)
-	assert.True(t, resp.StatusCode >= 200 && resp.StatusCode < 300)
+	must.NoError(t, err)
+	must.Between(t, 200, resp.StatusCode, 299)
 }
 
 func startWebServer() *httptest.Server {

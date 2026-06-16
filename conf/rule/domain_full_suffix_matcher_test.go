@@ -3,7 +3,7 @@ package rule
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 func TestDomainFullMatch(t *testing.T) {
@@ -19,7 +19,7 @@ func TestDomainFullMatch(t *testing.T) {
 	for _, tt := range tests {
 		matcher := newDomainFullAndSuffixMatcher()
 		matcher.addDomainFullRule(tt.rule)
-		assert.Equal(t, tt.expected, matcher.match(tt.input), "no match", tt)
+		must.Eq(t, tt.expected, matcher.match(tt.input), must.Sprintf("no match: %v", tt))
 	}
 }
 
@@ -36,6 +36,6 @@ func TestDomainSuffixMatch(t *testing.T) {
 	for _, tt := range tests {
 		matcher := newDomainFullAndSuffixMatcher()
 		matcher.addDomainSuffixRule(tt.rule)
-		assert.Equal(t, tt.expected, matcher.match(tt.input), "no match", tt)
+		must.Eq(t, tt.expected, matcher.match(tt.input), must.Sprintf("no match: %v", tt))
 	}
 }

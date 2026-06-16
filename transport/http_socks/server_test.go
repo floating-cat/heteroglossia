@@ -11,7 +11,7 @@ import (
 
 	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/transport/direct"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 const (
@@ -62,8 +62,8 @@ func testHandleConnectionWithoutAuthInfo(t *testing.T) {
 		return startClient(nil)
 	})
 
-	assert.Nil(t, err1)
-	assert.Nil(t, err2)
+	must.NoError(t, err1)
+	must.NoError(t, err2)
 }
 
 func testHandleConnectionWithEmptyAuthInfo(t *testing.T) {
@@ -73,8 +73,8 @@ func testHandleConnectionWithEmptyAuthInfo(t *testing.T) {
 		return startClient(nil)
 	})
 
-	assert.Nil(t, err1)
-	assert.Nil(t, err2)
+	must.NoError(t, err1)
+	must.NoError(t, err2)
 }
 
 func testHandleConnectionWithAuthInfo(t *testing.T) {
@@ -84,8 +84,8 @@ func testHandleConnectionWithAuthInfo(t *testing.T) {
 		return startClient(authInfo)
 	})
 
-	assert.Nil(t, err1)
-	assert.Nil(t, err2)
+	must.NoError(t, err1)
+	must.NoError(t, err2)
 }
 
 func testHandleConnectionWithIncorrectAuthInfo(t *testing.T) {
@@ -95,8 +95,8 @@ func testHandleConnectionWithIncorrectAuthInfo(t *testing.T) {
 		return startClient(wrongAuthInfo)
 	})
 
-	assert.NotNil(t, err1)
-	assert.NotNil(t, err2)
+	must.Error(t, err1)
+	must.Error(t, err2)
 }
 
 func startProxyServer(t *testing.T, authInfo *conf.HTTPSOCKSAuthInfo) error {
@@ -106,7 +106,7 @@ func startProxyServer(t *testing.T, authInfo *conf.HTTPSOCKSAuthInfo) error {
 	}
 	defer func() {
 		err := ln.Close()
-		assert.Nil(t, err)
+		must.NoError(t, err)
 	}()
 
 	rwc, err := ln.Accept()

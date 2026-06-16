@@ -3,7 +3,7 @@ package tr_carrier
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 func TestReplaceCRLF(t *testing.T) {
@@ -18,6 +18,6 @@ func TestReplaceCRLF(t *testing.T) {
 		{[16]byte{cr, lf, cr, lf}, [16]byte{cr, escapedLF, cr, escapedLF}},
 	}
 	for _, tt := range tests {
-		assert.Equal(t, tt.expected, replaceCRLF(tt.arr), "no match", tt)
+		must.Eq(t, tt.expected, replaceCRLF(tt.arr), must.Sprintf("no match: %v", tt))
 	}
 }

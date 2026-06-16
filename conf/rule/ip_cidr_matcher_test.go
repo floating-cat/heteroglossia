@@ -4,7 +4,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 	"go4.org/netipx"
 )
 
@@ -25,7 +25,7 @@ func TestIpMatchWithIp(t *testing.T) {
 		var ipSetBuilder netipx.IPSetBuilder
 		ipSetBuilder.Add(netip.MustParseAddr(tt.rule))
 		ipset, _ := ipSetBuilder.IPSet()
-		assert.Equal(t, tt.expected, ipset.Contains(netip.MustParseAddr(tt.input)), "no match", tt)
+		must.Eq(t, tt.expected, ipset.Contains(netip.MustParseAddr(tt.input)), must.Sprintf("no match: %v", tt))
 	}
 }
 
@@ -42,7 +42,7 @@ func TestIpMatchWithCidr(t *testing.T) {
 		var ipSetBuilder netipx.IPSetBuilder
 		ipSetBuilder.Add(netip.MustParseAddr(tt.rule))
 		ipset, _ := ipSetBuilder.IPSet()
-		assert.Equal(t, tt.expected, ipset.ContainsPrefix(netip.MustParsePrefix(tt.input)), "no match", tt)
+		must.Eq(t, tt.expected, ipset.ContainsPrefix(netip.MustParsePrefix(tt.input)), must.Sprintf("no match: %v", tt))
 	}
 }
 
@@ -64,6 +64,6 @@ func TestCidrMatchWithIp(t *testing.T) {
 		var ipSetBuilder netipx.IPSetBuilder
 		ipSetBuilder.AddPrefix(netip.MustParsePrefix(tt.rule))
 		ipset, _ := ipSetBuilder.IPSet()
-		assert.Equal(t, tt.expected, ipset.Contains(netip.MustParseAddr(tt.input)), "no match", tt)
+		must.Eq(t, tt.expected, ipset.Contains(netip.MustParseAddr(tt.input)), must.Sprintf("no match: %v", tt))
 	}
 }
