@@ -25,12 +25,13 @@ import (
 )
 
 func main() {
-	configFileDir := filepath.Dir(cli.Parse().ConfigFile)
-	err := os.Chdir(configFileDir)
+	configFile := cli.Parse().ConfigFile
+	configDir := filepath.Dir(configFile)
+	err := os.Chdir(configDir)
 	if err != nil {
-		log.WarnWithError("fail to change the current working directory", err, "path", configFileDir)
+		log.WarnWithError("fail to change the current working directory", err, "path", configDir)
 	}
-	config, err := conf.Parse(cli.Parse().ConfigFile)
+	config, err := conf.Parse(configFile)
 	if err != nil {
 		fmt.Println(err)
 		return

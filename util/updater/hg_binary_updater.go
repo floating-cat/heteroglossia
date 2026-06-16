@@ -20,7 +20,7 @@ const (
 )
 
 func UpdateHgBinary(client *http.Client) (bool, string, error) {
-	currentVersion := cli.VersionWithVPrefix()
+	currentVersion := "v" + cli.Version
 	if !semver.IsValid(currentVersion) {
 		return false, "", errors.New("the current binary has an invalid semantic version, so skip the update")
 	}
