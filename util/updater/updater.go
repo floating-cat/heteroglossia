@@ -94,10 +94,8 @@ func updateFile(client *http.Client, filePath, fileURL, fileSHA256SumURL string)
 
 func downloadFile(client *http.Client, url string) (*os.File, error) {
 	filename := path.Base(url)
+	//goland:noinspection GoResourceLeak
 	file, err := os.CreateTemp("", filename)
-	defer func() {
-		_ = file.Close()
-	}()
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
