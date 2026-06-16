@@ -31,7 +31,7 @@ func Parse(configFilePath string) (*Config, error) {
 	}
 
 	config := &Config{}
-	err = json.Unmarshal(bs, &config)
+	err = json.Unmarshal(bs, config)
 	if err != nil {
 		return nil, errors.Newf(err, "error: %v", configFilePath)
 	}

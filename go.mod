@@ -3,7 +3,6 @@ module github.com/floating-cat/heteroglossia
 go 1.26
 
 require (
-	github.com/flashlabs/rootpath v1.1.6
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/mdobak/go-xerrors v1.0.0
