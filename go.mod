@@ -3,12 +3,12 @@ module github.com/floating-cat/heteroglossia
 go 1.26
 
 require (
+	github.com/gaissmai/bart v0.28.0
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/mdobak/go-xerrors v1.0.0
 	github.com/shoenig/test v1.13.2
 	github.com/tebeka/atexit v0.3.0
-	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/crypto v0.53.0
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976
 	golang.org/x/mod v0.37.0

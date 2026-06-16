@@ -41,9 +41,9 @@ func WriteSOCKSLikeAddr(buf *bytes.Buffer, addr *transport.SocketAddress) {
 func writeAddrType(buf *bytes.Buffer, addr *transport.SocketAddress) {
 	switch addr.AddrType {
 	case transport.IPv4:
-		buf.WriteByte(connectionAddressIpv4)
+		buf.WriteByte(connectionAddressIPv4)
 	case transport.IPv6:
-		buf.WriteByte(connectionAddressIpv6)
+		buf.WriteByte(connectionAddressIPv6)
 	default:
 		buf.WriteByte(connectionAddressDomain)
 	}

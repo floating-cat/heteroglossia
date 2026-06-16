@@ -177,7 +177,7 @@ Response
 */
 
 var connectionCommandNotSupportedBytes = []byte{Version5, connectionCommandNotSupported, connectionReserved,
-	connectionAddressIpv4, 0, 0, 0, 0, 0}
+	connectionAddressIPv4, 0, 0, 0, 0, 0}
 
 // According to the rfc1928, we need to return the source address/port that SOCKS5 server used to connect to the target host,
 // but we just return dummy values here as these values are not useful to a client and some SOCKS5 server returns the dummy values.

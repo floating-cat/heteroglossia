@@ -101,9 +101,8 @@ func (s *server) Serve(ctx context.Context, conn net.Conn) error {
 			defer pool.Put(unrelatedBs)
 			unrelatedBs = append(unrelatedBs, crlf...)
 			unrelatedBs = append(unrelatedBs, unreadBs...)
-			ip := netip.IPv6Loopback()
+			fallbackAddr := transport.NewSocketAddressByIP(new(netip.IPv6Loopback()), s.tlsBadAuthFallbackServerPort)
 			ctx := contextutil.WithValues(ctx, contextutil.InboundTag, "TLS carrier with wrong auth")
-			fallbackAddr := transport.NewSocketAddressByIP(&ip, s.tlsBadAuthFallbackServerPort)
 			return transport.ForwardTCP(ctx, fallbackAddr, ioutil.NewBytesReadPreloadConn(unrelatedBs, conn), s.targetClient)
 		}
 

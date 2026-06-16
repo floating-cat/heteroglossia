@@ -12,12 +12,12 @@ const (
 	//   o  IP V4 address: X'01'
 	//   o  DOMAINNAME: X'03'
 	//   o  IP V6 address: X'04'
-	connectionAddressIpv4   byte = 0x01
-	connectionAddressIpv6   byte = 0x04
+	connectionAddressIPv4   byte = 0x01
+	connectionAddressIPv6   byte = 0x04
 	connectionAddressDomain byte = 0x03
 )
 
-var socksAddressType = [3]byte{connectionAddressIpv4, connectionAddressIpv6, connectionAddressDomain}
+var socksAddressType = [3]byte{connectionAddressIPv4, connectionAddressIPv6, connectionAddressDomain}
 
 func ReadSOCKS5Address(r io.Reader) (dest *transport.SocketAddress, err error) {
 	return transport.ReadAddressWithType(r, socksAddressType)

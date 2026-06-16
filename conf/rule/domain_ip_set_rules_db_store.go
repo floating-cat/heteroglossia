@@ -95,7 +95,7 @@ func (store *DomainIPSetRulesQueryStore) queryDomainRulesByTag(tag string, consu
 	return nil
 }
 
-func (store *DomainIPSetRulesQueryStore) queryIpSetRulesByTag(tag string, consumer func(ip netip.Addr, bits int)) error {
+func (store *DomainIPSetRulesQueryStore) queryIPSetRulesByTag(tag string, consumer func(ip netip.Addr, bits int) error) error {
 	rows, err := store.db.Query(ipSetRulesSqlQueryTemplate, tag)
 	if err != nil {
 		return errors.WithStack(err)
@@ -140,7 +140,7 @@ func (store *DomainIPSetRulesQueryStore) queryIpSetRulesByTag(tag string, consum
 	return nil
 }
 
-func consumeCIDRsBytes(cidrsBytes []byte, ipv4 bool, tag string, consume func(ip netip.Addr, bits int)) error {
+func consumeCIDRsBytes(cidrsBytes []byte, ipv4 bool, tag string, consume func(ip netip.Addr, bits int) error) error {
 	var cidrSize int
 	var ipNumber int
 	if ipv4 {
@@ -165,7 +165,10 @@ func consumeCIDRsBytes(cidrsBytes []byte, ipv4 bool, tag string, consume func(ip
 		if ipv4 {
 			bits += 128 - 32
 		}
-		consume(ip, bits)
+		err := consume(ip, bits)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

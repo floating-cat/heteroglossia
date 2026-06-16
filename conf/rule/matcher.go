@@ -7,13 +7,13 @@ import (
 	"strings"
 
 	"github.com/floating-cat/heteroglossia/util/errors"
-	"go4.org/netipx"
+	"github.com/gaissmai/bart"
 )
 
 type Matcher struct {
 	domainFullAndSuffixMatcher domainFullAndSuffixMatcher
 	domainRegexMatcher         []regexp.Regexp
-	ipCidrMatcher              *netipx.IPSet
+	ipCidrMatcher              *bart.Fast[any]
 	bakedMatchRules            []string
 }
 
@@ -37,7 +37,7 @@ func (matcher *Matcher) CopyWithBakedRulesOnly() *Matcher {
 
 func (matcher *Matcher) SetupRulesData(rulesQueryStore *DomainIPSetRulesQueryStore) error {
 	var domainRegexMatcher []regexp.Regexp
-	var ipSetBuilder netipx.IPSetBuilder
+	ipPrefixSet := new(bart.Fast[any])
 
 	for _, rule := range matcher.bakedMatchRules {
 		switch {
@@ -56,11 +56,21 @@ func (matcher *Matcher) SetupRulesData(rulesQueryStore *DomainIPSetRulesQuerySto
 
 		case strings.HasPrefix(rule, ipPrefix):
 			ip := strings.TrimPrefix(rule, ipPrefix)
-			ipSetBuilder.Add(to6(netip.MustParseAddr(ip)))
+			addr := netip.MustParseAddr(ip)
+			prefix, err := toPrefixUnmapped(addr, addr.BitLen())
+			if err != nil {
+				return err
+			}
+			ipPrefixSet.Insert(prefix, nil)
 
 		case strings.HasPrefix(rule, cidrPrefix):
 			cidr := strings.TrimPrefix(rule, cidrPrefix)
-			ipSetBuilder.AddPrefix(netip.MustParsePrefix(cidr))
+			prefix := netip.MustParsePrefix(cidr)
+			prefix, err := toPrefixUnmapped(prefix.Addr(), prefix.Bits())
+			if err != nil {
+				return err
+			}
+			ipPrefixSet.Insert(prefix, nil)
 
 		case strings.HasPrefix(rule, domainTagPrefix):
 			domainTag := strings.TrimPrefix(rule, domainTagPrefix)
@@ -84,8 +94,13 @@ func (matcher *Matcher) SetupRulesData(rulesQueryStore *DomainIPSetRulesQuerySto
 
 		case strings.HasPrefix(rule, ipSetTagPrefix):
 			ipSetTag := strings.TrimPrefix(rule, ipSetTagPrefix)
-			err := rulesQueryStore.queryIpSetRulesByTag(ipSetTag, func(ip netip.Addr, bits int) {
-				ipSetBuilder.AddPrefix(netip.PrefixFrom(to6(ip), bits))
+			err := rulesQueryStore.queryIPSetRulesByTag(ipSetTag, func(ip netip.Addr, bits int) error {
+				prefix, err := toPrefixUnmapped(ip, ip.BitLen())
+				if err != nil {
+					return err
+				}
+				ipPrefixSet.Insert(prefix, nil)
+				return nil
 			})
 			if err != nil {
 				return err
@@ -95,12 +110,8 @@ func (matcher *Matcher) SetupRulesData(rulesQueryStore *DomainIPSetRulesQuerySto
 		}
 	}
 
-	ipSet, err := ipSetBuilder.IPSet()
-	if err != nil {
-		return errors.New(err, "fail to build the IP set")
-	}
 	matcher.domainRegexMatcher = domainRegexMatcher
-	matcher.ipCidrMatcher = ipSet
+	matcher.ipCidrMatcher = ipPrefixSet
 	return nil
 }
 
@@ -117,9 +128,7 @@ func (matcher *Matcher) MatchDomain(domain string) bool {
 }
 
 func (matcher *Matcher) MatchIP(ip *netip.Addr) bool {
-	// we use IPv4-mapped IPv6s for IPv4s in our ip matcher
-	ipv6 := to6(*ip)
-	return matcher.ipCidrMatcher.Contains(ipv6)
+	return matcher.ipCidrMatcher.Contains(ip.Unmap())
 }
 
 func (matcher *Matcher) UnmarshalJSON(data []byte) error {
@@ -134,10 +143,10 @@ func (matcher *Matcher) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// due to https://github.com/golang/go/issues/54365
-func to6(addr netip.Addr) netip.Addr {
-	if addr.Is4() {
-		return netip.AddrFrom16(addr.As16())
+// bart.Fast doesn't support IPv4-in-IPv6 addresses, so unmap them
+func toPrefixUnmapped(ip netip.Addr, bits int) (netip.Prefix, error) {
+	if ip.Is4In6() {
+		return errors.WithStack2(ip.Unmap().Prefix(bits - 96))
 	}
-	return addr
+	return errors.WithStack2(ip.Prefix(bits))
 }

@@ -4,11 +4,11 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/gaissmai/bart"
 	"github.com/shoenig/test/must"
-	"go4.org/netipx"
 )
 
-func TestIpMatchWithIp(t *testing.T) {
+func TestIPRulesWithIP(t *testing.T) {
 	tests := []struct {
 		rule     string
 		input    string
@@ -18,35 +18,17 @@ func TestIpMatchWithIp(t *testing.T) {
 		{"192.0.2.1", "192.0.2.2", false},
 		{"::1", "::1", true},
 		{"::1", "::2", false},
-		{"::ffff:192.0.2.128", "192.0.2.128", false},
-		{"192.0.2.128", "::ffff:192.0.2.128", false},
+		{"::ffff:192.0.2.128", "192.0.2.128", true},
+		{"192.0.2.128", "::ffff:192.0.2.128", true},
 	}
 	for _, tt := range tests {
-		var ipSetBuilder netipx.IPSetBuilder
-		ipSetBuilder.Add(netip.MustParseAddr(tt.rule))
-		ipset, _ := ipSetBuilder.IPSet()
-		must.Eq(t, tt.expected, ipset.Contains(netip.MustParseAddr(tt.input)), must.Sprintf("no match: %v", tt))
+		ip := netip.MustParseAddr(tt.rule)
+		matcher := newIPCidrMatcher(t, ip, ip.BitLen())
+		must.Eq(t, tt.expected, matcher.MatchIP(new(netip.MustParseAddr(tt.input))), must.Sprintf("no match: %v", tt))
 	}
 }
 
-func TestIpMatchWithCidr(t *testing.T) {
-	tests := []struct {
-		rule     string
-		input    string
-		expected bool
-	}{
-		{"192.0.2.1", "192.0.2.1/32", true},
-		{"192.0.2.1", "192.0.2.1/31", false},
-	}
-	for _, tt := range tests {
-		var ipSetBuilder netipx.IPSetBuilder
-		ipSetBuilder.Add(netip.MustParseAddr(tt.rule))
-		ipset, _ := ipSetBuilder.IPSet()
-		must.Eq(t, tt.expected, ipset.ContainsPrefix(netip.MustParsePrefix(tt.input)), must.Sprintf("no match: %v", tt))
-	}
-}
-
-func TestCidrMatchWithIp(t *testing.T) {
+func TestCidrRulesWithIP(t *testing.T) {
 	tests := []struct {
 		rule     string
 		input    string
@@ -61,9 +43,19 @@ func TestCidrMatchWithIp(t *testing.T) {
 		{"::ffff:192.0.2.128/120", "::ffff:192.0.1.1", false},
 	}
 	for _, tt := range tests {
-		var ipSetBuilder netipx.IPSetBuilder
-		ipSetBuilder.AddPrefix(netip.MustParsePrefix(tt.rule))
-		ipset, _ := ipSetBuilder.IPSet()
-		must.Eq(t, tt.expected, ipset.Contains(netip.MustParseAddr(tt.input)), must.Sprintf("no match: %v", tt))
+		prefix := netip.MustParsePrefix(tt.rule)
+		matcher := newIPCidrMatcher(t, prefix.Addr(), prefix.Bits())
+		must.Eq(t, tt.expected, matcher.MatchIP(new(netip.MustParseAddr(tt.input))), must.Sprintf("no match: %v", tt))
 	}
+}
+
+func newIPCidrMatcher(t *testing.T, ip netip.Addr, bits int) *Matcher {
+	ipPrefixSet := new(bart.Fast[any])
+	prefix, err := toPrefixUnmapped(ip, bits)
+	must.NoError(t, err)
+	ipPrefixSet.Insert(prefix, nil)
+
+	matcher := new(Matcher)
+	matcher.ipCidrMatcher = ipPrefixSet
+	return matcher
 }

@@ -71,15 +71,13 @@ func ReadAddressWithType(r io.Reader, addressTypeBs [3]byte) (*SocketAddress, er
 		if err != nil {
 			return nil, err
 		}
-		addr := netip.AddrFrom4([4]byte(ipv4))
-		ip = &addr
+		ip = new(netip.AddrFrom4([4]byte(ipv4)))
 	case addressTypeBs[1]:
 		_, ipv6, err := ioutil.ReadN(r, 16)
 		if err != nil {
 			return nil, err
 		}
-		addr := netip.AddrFrom16([16]byte(ipv6))
-		ip = &addr
+		ip = new(netip.AddrFrom16([16]byte(ipv6)))
 	case addressTypeBs[2]:
 		domain, err = ioutil.ReadStringByUint8(r)
 		if err != nil {
