@@ -18,7 +18,7 @@ func New(vals ...any) error {
 
 // examples:
 // Newf("access denied: %v", "404")
-// Newf(ErrReadError, "access denied: %v", "404"))
+// Newf(ErrReadError, "access denied: %v", "404")
 
 func Newf(vals ...any) error {
 	n := len(vals)
