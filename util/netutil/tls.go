@@ -34,10 +34,10 @@ func TLSClientConfig(proxyNode *conf.ProxyNode, tlsKeyLog bool) (*tls.Config, er
 		return tlsConfig, nil
 	}
 
-	if proxyNode.TLSCertFile == "" {
+	if proxyNode.TLSCustomCertFile == "" {
 		tlsConfig = &tls.Config{ServerName: proxyNode.Host}
 	} else {
-		certBs, err := ioutil.ReadFile(proxyNode.TLSCertFile)
+		certBs, err := ioutil.ReadFile(proxyNode.TLSCustomCertFile)
 		if err != nil {
 			return nil, errors.New(err, "fail to load the TLS certificate file")
 		}

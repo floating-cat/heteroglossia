@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/floating-cat/heteroglossia/conf"
@@ -50,14 +48,10 @@ func startWebServer() *httptest.Server {
 }
 
 func newHg() (*conf.Hg, error) {
-	// need to change the current working directory to the project root for the config to work.
-	// https://stackoverflow.com/a/58294680
-	_, filename, _, _ := runtime.Caller(0)
-	err := os.Chdir(filepath.Join(filepath.Dir(filename), "../.."))
+	err := os.Chdir("../../")
 	if err != nil {
 		return nil, err
 	}
-
 	bs, err := ioutil.ReadFile("server_example.conf.json")
 	if err != nil {
 		return nil, err
@@ -73,11 +67,11 @@ func newHg() (*conf.Hg, error) {
 
 func toProxyNode(hg *conf.Hg) *conf.ProxyNode {
 	return &conf.ProxyNode{
-		Host:        hg.Host,
-		Password:    hg.Password,
-		TCPPort:     hg.TCPPort,
-		TLSPort:     hg.TLSPort,
-		TLSCertFile: hg.TLSCertKeyPair.CertFile,
-		QUICPort:    hg.QUICPort,
+		Host:              hg.Host,
+		Password:          hg.Password,
+		TCPPort:           hg.TCPPort,
+		TLSPort:           hg.TLSPort,
+		TLSCustomCertFile: hg.TLSCertKeyPair.CertFile,
+		QUICPort:          hg.QUICPort,
 	}
 }

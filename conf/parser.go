@@ -2,25 +2,26 @@ package conf
 
 import (
 	"encoding/json/v2"
-	stdErrors "errors"
+	"net"
 	"path/filepath"
-	"reflect"
-	"strings"
+	"regexp"
 
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/ioutil"
-	"github.com/go-playground/validator/v10"
+	"github.com/twharmon/govalid"
 )
 
-var validate = validator.New()
-
 func init() {
-	validate.RegisterTagNameFunc(func(fld reflect.StructField) string {
-		name := fld.Tag.Get("json")
-		if name == "" {
-			return strings.ToLower(fld.Name)
+	govalid.Rule("host", func(v any) error {
+		switch tv := v.(type) {
+		case string:
+			if isIPOrHostname(tv) {
+				return nil
+			}
+			return govalid.NewValidationError("must be a valid IP address or a hostname that follows RFC 1123")
+		default:
+			return errors.New("host constraint must be applied to string only")
 		}
-		return name
 	})
 }
 
@@ -41,22 +42,29 @@ func Parse(configFilePath string) (*Config, error) {
 		return nil, err
 	}
 
-	err = validate.Struct(config)
+	err = validate(config)
 	if err != nil {
-		var errs validator.ValidationErrors
-		if stdErrors.As(err, &errs) {
-			if len(errs) > 0 {
-				validatedError := errors.Newf("error: fail to parse the config file %v", configFilePath)
-				for _, err := range errs {
-					fieldName := err.Namespace()[strings.Index(err.Namespace(), ".")+1:]
-					validatedError = errors.Join(validatedError, errors.Newf("  the '%v' field should be '%v'", fieldName, err.ActualTag()))
-				}
-				return nil, validatedError
-			}
-		}
+		return nil, errors.Newf(err, "error: fail to parse the config file %v", configFilePath)
 	}
+
 	resolveAllFilePathsToConfigFolder(config, filepath.Dir(configFilePath))
 	return config, nil
+}
+
+func validate(config *Config) error {
+	err := govalid.Validate(config)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	// govalid cannot dive into map values, so validate them manually
+	for proxyNodeName, proxyNode := range config.Outbounds {
+		err := govalid.Validate(proxyNode)
+		if err != nil {
+			return errors.New("field Inbounds: field "+proxyNodeName+":", err)
+		}
+	}
+	return nil
 }
 
 func resolveAllFilePathsToConfigFolder(config *Config, configFileFolder string) {
@@ -72,8 +80,8 @@ func resolveAllFilePathsToConfigFolder(config *Config, configFileFolder string) 
 		}
 	}
 	for _, v := range config.Outbounds {
-		if v.TLSCertFile != "" {
-			v.TLSCertFile = resolveTo(v.TLSCertFile, configFileFolder)
+		if v.TLSCustomCertFile != "" {
+			v.TLSCustomCertFile = resolveTo(v.TLSCustomCertFile, configFileFolder)
 		}
 	}
 }
@@ -83,4 +91,38 @@ func resolveTo(relativePath string, basePath string) string {
 		return relativePath
 	}
 	return filepath.Join(basePath, relativePath)
+}
+
+// forked from https://github.com/go-playground/validator/pull/1562
+var hostnameRFC1123Regex = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$`)
+
+func isIPOrHostname(host string) bool {
+	if net.ParseIP(host) != nil {
+		return true
+	} else if isDottedDecimalIPv4(host) {
+		return false
+	}
+	return hostnameRFC1123Regex.MatchString(host)
+}
+
+func isDottedDecimalIPv4(s string) bool {
+	labels := 1
+	labelLen := 0
+
+	for _, c := range s {
+		switch {
+		case c == '.':
+			if labelLen == 0 {
+				return false
+			}
+			labels++
+			labelLen = 0
+		case c >= '0' && c <= '9':
+			labelLen++
+		default:
+			return false
+		}
+	}
+
+	return labels == 4 && labelLen > 0
 }

@@ -10,20 +10,20 @@ import (
 )
 
 type Config struct {
-	Inbounds  Inbounds              `json:"inbounds"`
-	Outbounds map[string]*ProxyNode `json:"outbounds" validate:"dive"`
-	Route     Route                 `json:"route"`
-	Misc      Misc                  `json:"misc"`
+	Inbounds  Inbounds              `json:"inbounds" valid:"dive"`
+	Outbounds map[string]*ProxyNode `json:"outbounds"`
+	Route     Route                 `json:"route" valid:"dive"`
+	Misc      Misc                  `json:"misc" valid:"dive"`
 }
 
 type Inbounds struct {
-	HTTPSOCKS *HTTPSOCKS `json:"http-socks"`
-	Hg        *Hg        `json:"hg"`
+	HTTPSOCKS *HTTPSOCKS `json:"http-socks" valid:"dive"`
+	Hg        *Hg        `json:"hg" valid:"dive"`
 }
 
 type HTTPSOCKS struct {
-	Host        string `json:"host" validate:"ip|hostname_rfc1123"`
-	Port        uint16 `json:"port" validate:"gte=0,lte=65536"`
+	Host        string `json:"host" valid:"req|host"`
+	Port        uint16 `json:"port" valid:"min:1|max:65535"`
 	Username    string `json:"username"`
 	Password    string `json:"password,secure"`
 	SystemProxy bool   `json:"system-proxy"`
@@ -41,13 +41,13 @@ func (httpSOCKS *HTTPSOCKS) ToHTTPSOCKSAuthInfo() *HTTPSOCKSAuthInfo {
 }
 
 type Hg struct {
-	Host                      string          `json:"host" validate:"ip|hostname_rfc1123"`
-	Password                  Password        `json:"password,secure" validate:"required"`
-	TCPPort                   int             `json:"tcp-port" validate:"gte=0,lte=65536"`
-	TLSPort                   int             `json:"tls-port" validate:"gte=0,lte=65536"`
+	Host                      string          `json:"host" valid:"req|host"`
+	Password                  HexPassword     `json:"password,secure" valid:"dive"`
+	TCPPort                   int             `json:"tcp-port" valid:"min:1|max:65535"`
+	TLSPort                   int             `json:"tls-port" valid:"min:1|max:65535"`
 	TLSCertKeyPair            *TLSCertKeyPair `json:"tls-cert-key-pair"`
 	TLSBadAuthFallbackSiteDir string          `json:"tls-bad-auth-fallback-site-dir"`
-	QUICPort                  int             `json:"quic-port" validate:"gte=0,lte=65536"`
+	QUICPort                  int             `json:"quic-port" valid:"min:1|max:65535"`
 }
 
 func (hg *Hg) UnmarshalJSON(data []byte) error {
@@ -59,20 +59,20 @@ func (hg *Hg) UnmarshalJSON(data []byte) error {
 }
 
 type ProxyNode struct {
-	Host        string   `json:"host" validate:"ip|hostname_rfc1123"`
-	Password    Password `json:"password,secure" validate:"required"`
-	TCPPort     int      `json:"tcp-port" validate:"gte=0,lte=65536"`
-	TLSPort     int      `json:"tls-port" validate:"gte=0,lte=65536"`
-	TLSCertFile string   `json:"tls-cert"`
-	QUICPort    int      `json:"quic-port" validate:"gte=0,lte=65536"`
+	Host              string      `json:"host" valid:"req|host"`
+	Password          HexPassword `json:"password,secure" valid:"dive"`
+	TCPPort           int         `json:"tcp-port" valid:"min:1|max:65535"`
+	TLSPort           int         `json:"tls-port" valid:"min:1|max:65535"`
+	TLSCustomCertFile string      `json:"tls-cert"`
+	QUICPort          int         `json:"quic-port" valid:"min:1|max:65535"`
 }
 
-type Password struct {
+type HexPassword struct {
 	Raw    [16]byte
-	String string
+	String string `valid:"req"`
 }
 
-func (pw *Password) UnmarshalJSON(data []byte) error {
+func (pw *HexPassword) UnmarshalJSON(data []byte) error {
 	var pwStr string
 	err := json.Unmarshal(data, &pwStr)
 	if err != nil {
@@ -81,7 +81,7 @@ func (pw *Password) UnmarshalJSON(data []byte) error {
 
 	bs, err := hex.DecodeString(pwStr)
 	if err != nil || len(bs) != 16 {
-		return errors.New("the password should be 32 hex characters in length")
+		return errors.New("the password must be 32 hex characters in length")
 	}
 	pw.Raw = [16]byte(bs)
 	pw.String = pwStr
@@ -97,15 +97,15 @@ func (node *ProxyNode) UnmarshalJSON(data []byte) error {
 }
 
 type Route struct {
-	Rules Rules  `json:"rules" validate:"dive"`
+	Rules Rules  `json:"rules" valid:"dive"`
 	Final string `json:"final"`
 }
 
 type Rules []Rule
 
 type Rule struct {
-	Matcher *libRule.Matcher `json:"match"`
-	Policy  string           `json:"policy" validate:"required"`
+	Matcher *libRule.Matcher `json:"match" valid:"req"`
+	Policy  string           `json:"policy" valid:"req"`
 }
 
 type Misc struct {
@@ -114,7 +114,7 @@ type Misc struct {
 	TLSKeyLog           bool `json:"tls-key-log"`
 	VerboseLog          bool `json:"verbose-log"`
 	Profiling           bool `json:"profiling"`
-	ProfilingPort       int  `json:"profiling-port" validate:"gte=0,lte=65536"`
+	ProfilingPort       int  `json:"profiling-port" valid:"min:1|max:65535"`
 }
 
 func (misc *Misc) UnmarshalJSON(data []byte) error {
