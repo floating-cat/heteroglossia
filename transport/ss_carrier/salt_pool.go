@@ -24,16 +24,18 @@ func newSaltPool[T comparable]() *saltPool[T] {
 
 const retainDuration = 60 * time.Second
 
-func (p *saltPool[T]) add(salt T) {
+// checkAndAdd atomically checks whether salt has been seen within retainDuration
+// and, if not, records it. It returns true if the salt is new (no replay), false
+// if the salt was already present (replay detected).
+//
+// The check and the insert are performed under a single lock acquisition so that
+// two concurrent sessions presenting the same salt cannot both observe it as new
+// before either records it (a Time-of-check to time-of-use race that would defeat replay protection).
+func (p *saltPool[T]) checkAndAdd(salt T) bool {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
-	p.pool[salt] = time.Now()
-}
-
-func (p *saltPool[T]) check(salt T) bool {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-	if now := time.Now(); now.Sub(p.lastCleaned) > retainDuration {
+	now := time.Now()
+	if now.Sub(p.lastCleaned) > retainDuration {
 		for oldSalt, addedTime := range p.pool {
 			if now.Sub(addedTime) > retainDuration {
 				delete(p.pool, oldSalt)
@@ -42,5 +44,9 @@ func (p *saltPool[T]) check(salt T) bool {
 		p.lastCleaned = now
 	}
 	_, ok := p.pool[salt]
-	return !ok
+	if ok {
+		return false
+	}
+	p.pool[salt] = now
+	return true
 }

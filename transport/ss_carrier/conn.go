@@ -346,7 +346,7 @@ func (c *conn) readClientFirstPayload() error {
 
 	c.clientSalt = reqSaltWithFixedLenHeaderEncryptedBs[:saltSize]
 	clientSaltStr := string(c.clientSalt)
-	ok := c.serverSideSaltPool.check(clientSaltStr)
+	ok := c.serverSideSaltPool.checkAndAdd(clientSaltStr)
 	if !ok {
 		return errors.New("replay detected due to repeated salt found")
 	}
@@ -365,7 +365,6 @@ func (c *conn) readClientFirstPayload() error {
 	if err != nil {
 		return err
 	}
-	c.serverSideSaltPool.add(clientSaltStr)
 
 	reqVarLenHeaderEncryptedBs := pool.Get(reqVarLenHeaderSize + c.aeadOverhead)
 	defer pool.Put(reqVarLenHeaderEncryptedBs)
