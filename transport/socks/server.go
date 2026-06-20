@@ -134,7 +134,7 @@ func (s *Server) handleClientAuthenticationRequest(conn net.Conn) error {
 	}
 	if s.authInfo.NotEqual(authInfoFromRequest) {
 		err = ioutil.Write_(conn, authUsernamePasswordFailureBytes)
-		return errors.Join(errors.New("incorrect username or password"), err)
+		return errors.Append(errors.New("incorrect username or password"), err)
 	}
 	return ioutil.Write_(conn, authUsernamePasswordSuccessBytes)
 }
@@ -145,7 +145,8 @@ func readClientAuthUsernamePassword(r io.Reader) (authInfo *conf.HTTPSOCKSAuthIn
 		return
 	}
 	if version != authUsernamePasswordVersion {
-		err = errors.Newf("excepted version %v in the client authentication request, but got %v", authUsernamePasswordVersion, version)
+		err = errors.Newf("excepted version %v in the client authentication request, but got %v",
+			authUsernamePasswordVersion, version)
 		return
 	}
 
@@ -195,7 +196,7 @@ func (s *Server) handleClientConnectionRequest(ctx context.Context, conn net.Con
 	}
 	if bs[1] != ConnectionCommandConnect {
 		err = ioutil.Write_(conn, connectionCommandNotSupportedBytes)
-		return errors.Join(errors.Newf("the command type %v is not supported, only command type 0x01 is supported", bs[1]), err)
+		return errors.Append(errors.Newf("the command type %v is not supported, only command type 0x01 is supported", bs[1]), err)
 	}
 
 	accessAddr, err := ReadSOCKS5Address(conn)

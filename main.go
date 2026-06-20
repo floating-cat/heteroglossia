@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	_ "net/http/pprof"
 	"os"
 	"os/exec"
@@ -33,7 +32,7 @@ func main() {
 	}
 	config, err := conf.Parse(configFile)
 	if err != nil {
-		fmt.Println(err)
+		errors.PrintWithoutStacktrace(err)
 		return
 	}
 
@@ -92,8 +91,7 @@ func selfRestart() {
 		return
 	}
 	// Windows does not support 'syscall.Exec'
-	if //goland:noinspection GoBoolExpressions
-	runtime.GOOS == "windows" {
+	if runtime.GOOS == "windows" {
 		cmd := exec.Command(executablePath, os.Args[1:]...)
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout

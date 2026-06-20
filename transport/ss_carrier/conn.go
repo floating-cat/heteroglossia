@@ -393,7 +393,7 @@ func (c *conn) readClientFirstPayload() error {
 	}
 	_, paddingLenBs, err := ioutil.ReadN(reqVarLenHeaderReader, lenFieldSize)
 	if err != nil {
-		return errors.WithStack(err)
+		return err
 	}
 	paddingLen := int(binary.BigEndian.Uint16(paddingLenBs))
 	remainSize := reqVarLenHeaderReader.Len()

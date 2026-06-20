@@ -4,53 +4,58 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/mdobak/go-xerrors"
 )
 
 // examples:
 // New("access denied")
-// New(ErrReadError, "access denied")
+// New("access denied", ErrReadError)
 
-func New(vals ...any) error {
-	return xerrors.New(vals)
-}
+var New = xerrors.New
 
 // examples:
 // Newf("access denied: %v", "404")
-// Newf(ErrReadError, "access denied: %v", "404")
+// Newf("access denied: %v: %.0w", "404", ErrReadError)
 
-func Newf(vals ...any) error {
-	n := len(vals)
-	if n > 0 {
-		switch v := vals[0].(type) {
-		case error:
-			if n > 1 {
-				format, ok := vals[1].(string)
-				if ok {
-					return xerrors.New(v, fmt.Sprintf(format, vals[2:]...))
-				}
-			}
-		case string:
-			return xerrors.New(fmt.Sprintf(v, vals[1:]...))
-		}
-	}
+var Newf = xerrors.Newf
 
-	panic(fmt.Sprintf("unsupported argument list: %v", vals))
-}
-
-func WithStack(err error) error {
-	return xerrors.New(err)
-}
+var WithStack = xerrors.New
 
 func WithStack2[T any](t T, err error) (T, error) {
 	return t, xerrors.New(err)
 }
 
-var Join = xerrors.Append
+var Append = xerrors.Append
 
 var Is = errors.Is
 
 func IsIoEof(err error) bool {
 	return errors.Is(err, io.EOF)
+}
+
+func Print(w io.Writer, err error) {
+	_, _ = xerrors.Fprint(w, err)
+}
+
+// PrintWithoutStacktrace forked from xerrors.Print
+func PrintWithoutStacktrace(err error) {
+	buf := &strings.Builder{}
+	first := true
+	for err != nil {
+		_, ok := errors.AsType[xerrors.DetailedError](err)
+		if ok {
+			if first {
+				buf.WriteString("Error: ")
+			}
+			buf.WriteString(err.Error())
+		}
+		first = false
+		err = errors.Unwrap(err)
+	}
+
+	if buf.Len() != 0 {
+		fmt.Println(buf.String())
+	}
 }

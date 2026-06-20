@@ -64,12 +64,12 @@ func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 		addr, err = transport.ToSocketAddr(req.Host, false, 80)
 	}
 	if err != nil {
-		return errors.Join(err, httpError(req, conn, http.StatusBadRequest))
+		return errors.Append(err, httpError(req, conn, http.StatusBadRequest))
 	}
 	if !s.authInfo.IsEmpty() {
 		username, password, ok := parse(req)
 		if !ok || s.authInfo.NotEqual2(username, password) {
-			return errors.Join(errors.New("no authentication info, or incorrect username/password"),
+			return errors.Append(errors.New("no authentication info, or incorrect username/password"),
 				httpError(req, conn, http.StatusProxyAuthRequired))
 		}
 	}
@@ -172,5 +172,5 @@ func httpError(req *http.Request, w io.Writer, statusCode int) error {
 		ProtoMajor: req.ProtoMajor,
 		ProtoMinor: req.ProtoMinor,
 	}
-	return resp.Write(w)
+	return errors.WithStack(resp.Write(w))
 }

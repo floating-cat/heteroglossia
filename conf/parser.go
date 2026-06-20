@@ -28,13 +28,13 @@ func init() {
 func Parse(configFilePath string) (*Config, error) {
 	bs, err := ioutil.ReadFile(configFilePath)
 	if err != nil {
-		return nil, errors.New(err, "error")
+		return nil, err
 	}
 
 	config := &Config{}
 	err = json.Unmarshal(bs, config)
 	if err != nil {
-		return nil, errors.Newf(err, "error: %v", configFilePath)
+		return nil, errors.Newf("fail to pase %v: %.0w", configFilePath, err)
 	}
 
 	err = config.Route.Rules.setupRulesData()
@@ -44,7 +44,7 @@ func Parse(configFilePath string) (*Config, error) {
 
 	err = validate(config)
 	if err != nil {
-		return nil, errors.Newf(err, "error: fail to parse the config file %v", configFilePath)
+		return nil, errors.Newf("fail to parse the config file %v: %.0w", configFilePath, err)
 	}
 
 	resolveAllFilePathsToConfigFolder(config, filepath.Dir(configFilePath))
@@ -61,7 +61,7 @@ func validate(config *Config) error {
 	for proxyNodeName, proxyNode := range config.Outbounds {
 		err := govalid.Validate(proxyNode)
 		if err != nil {
-			return errors.New("field Inbounds: field "+proxyNodeName+":", err)
+			return errors.Newf("field Outbounds: field %v: %.0w", proxyNodeName, err)
 		}
 	}
 	return nil

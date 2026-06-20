@@ -76,7 +76,7 @@ func (pw *HexPassword) UnmarshalJSON(data []byte) error {
 	var pwStr string
 	err := json.Unmarshal(data, &pwStr)
 	if err != nil {
-		return errors.New(err, "fail to parse the 'password' field")
+		return errors.New("fail to parse the 'password' field", err)
 	}
 
 	bs, err := hex.DecodeString(pwStr)
@@ -134,7 +134,7 @@ func (pair *TLSCertKeyPair) UnmarshalJSON(data []byte) error {
 	var certKeyStr string
 	err := json.Unmarshal(data, &certKeyStr)
 	if err != nil {
-		return errors.New(err, "fail to parse the 'tls-cert-key-pair' field")
+		return errors.New("fail to parse the 'tls-cert-key-pair' field", err)
 	}
 
 	certKeyPairs := strings.Split(certKeyStr, " ")

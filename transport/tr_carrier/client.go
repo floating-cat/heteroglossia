@@ -35,7 +35,7 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 	targetHostWithPort := c.proxyNode.Host + ":" + strconv.Itoa(c.proxyNode.TLSPort)
 	tlsConn, err := netutil.DialTLS(ctx, targetHostWithPort, c.tlsConfig)
 	if err != nil {
-		return nil, errors.Newf(err, "fail to connect to the TLS server %v", targetHostWithPort)
+		return nil, errors.Newf("fail to connect to the TLS server %v: %.0w", targetHostWithPort, err)
 	}
 	return newClientConn(tlsConn, addr, c.passwordWithoutCRLF), nil
 }

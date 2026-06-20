@@ -135,7 +135,7 @@ func (matcher *Matcher) UnmarshalJSON(data []byte) error {
 	var matchRules []string
 	err := json.Unmarshal(data, &matchRules)
 	if err != nil {
-		return errors.New(err, "fail to parse 'match' rules")
+		return errors.New("fail to parse 'match' rules", err)
 	}
 
 	createdMatcher := newMatcher(matchRules)

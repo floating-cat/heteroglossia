@@ -1,46 +1,58 @@
 package log
 
 import (
-	"fmt"
 	"log/slog"
+	"os"
 	"sync/atomic"
 
+	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/osutil"
-	"github.com/mdobak/go-xerrors"
 )
 
-var verbose = atomic.Bool{}
+var (
+	defaultWriter = os.Stderr
+	verbose       = atomic.Bool{}
+	logLevel      = new(slog.LevelVar)
+)
+
+func init() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(defaultWriter, &slog.HandlerOptions{Level: logLevel})))
+}
+
+func SetVerbose(b bool) {
+	verbose.Store(b)
+	if b {
+		logLevel.Set(slog.LevelDebug)
+	} else {
+		logLevel.Set(slog.LevelInfo)
+	}
+}
 
 var Info = slog.Info
 
 func InfoWithError(msg string, err error, args ...any) {
-	slog.Info(msg, append(args, "err", err)...)
 	if verbose.Load() == true {
-		// skip first stack trace which used in 'github.com/floating-cat/heteroglossia/util/errors' package
-		stacktrace := xerrors.StackTrace(err)
-		if len(stacktrace) > 1 {
-			fmt.Print(stacktrace[1:])
-		} else {
-			fmt.Print(stacktrace)
-		}
+		slog.Info(msg, args...)
+		errors.Print(defaultWriter, err)
+	} else {
+		slog.Info(msg, append(args, "err", err)...)
 	}
 }
 
 var Warn = slog.Warn
 
 func WarnWithError(msg string, err error, args ...any) {
-	slog.Warn(msg, append(args, "err", err)...)
-	fmt.Print(xerrors.StackTrace(err)[1:])
+	slog.Warn(msg, args...)
+	errors.Print(defaultWriter, err)
 }
 
-var Error = slog.Error
+func Error(msg string, err error, args ...any) {
+	slog.Error(msg, args...)
+	errors.Print(defaultWriter, err)
+}
 
 func Fatal(msg string, err error, args ...any) {
-	slog.Error(msg, append(args, "err", err)...)
+	slog.Error(msg, args...)
+	errors.Print(defaultWriter, err)
 	osutil.Exit(1)
-}
-
-func SetVerbose(b bool) {
-	verbose.Store(b)
-	slog.SetLogLoggerLevel(slog.LevelDebug)
 }

@@ -39,20 +39,20 @@ func TLSClientConfig(proxyNode *conf.ProxyNode, tlsKeyLog bool) (*tls.Config, er
 	} else {
 		certBs, err := ioutil.ReadFile(proxyNode.TLSCustomCertFile)
 		if err != nil {
-			return nil, errors.New(err, "fail to load the TLS certificate file")
+			return nil, err
 		}
 		certPool := x509.NewCertPool()
 		block, _ := pem.Decode(certBs)
 		if block == nil {
-			return nil, errors.New(err, "fail to decode the TLS certificate file")
+			return nil, errors.New("fail to decode the TLS certificate file")
 		}
 		cert, err := x509.ParseCertificate(block.Bytes)
 		if err != nil {
-			return nil, errors.New(err, "fail to parse the TLS certificate")
+			return nil, errors.WithStack(err)
 		}
 		// https://stackoverflow.com/a/73912711
 		if len(cert.DNSNames) == 0 {
-			return nil, errors.New(err, "no DNSNames in the TLS certificate")
+			return nil, errors.New("no DNSNames in the TLS certificate")
 		}
 		certPool.AppendCertsFromPEM(certBs)
 		tlsConfig = &tls.Config{
@@ -100,7 +100,7 @@ func TLSServerConfig(hg *conf.Hg) (*tls.Config, error) {
 	} else {
 		cert, err := tls.LoadX509KeyPair(hg.TLSCertKeyPair.CertFile, hg.TLSCertKeyPair.KeyFile)
 		if err != nil {
-			return nil, errors.New(err, "fail to load TLS Certificate/Key pair files")
+			return nil, errors.WithStack(err)
 		}
 		tlsConfig = &tls.Config{Certificates: []tls.Certificate{cert}}
 	}
