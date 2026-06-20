@@ -307,7 +307,7 @@ func (c *conn) readServerFirstPayload(b []byte, w io.Writer) (int, error) {
 	}
 
 	respPayloadEncryptedBs := pool.Get(respPayloadSize + c.aeadOverhead)
-	pool.Put(respPayloadEncryptedBs)
+	defer pool.Put(respPayloadEncryptedBs)
 	_, err = ioutil.ReadFull(c.TCPConn, respPayloadEncryptedBs)
 	if err != nil {
 		return 0, err
