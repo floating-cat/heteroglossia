@@ -72,12 +72,12 @@ func updateFile(client *http.Client, filePath, fileURL, fileSHA256SumURL string)
 			return err
 		}
 		newDownloadHgBinaryFile, err := os.Open(newDownloadHgBinaryPath)
-		defer func() {
-			_ = newDownloadHgBinaryFile.Close()
-		}()
 		if err != nil {
 			return err
 		}
+		defer func() {
+			_ = newDownloadHgBinaryFile.Close()
+		}()
 		_ = os.Remove(files[0].Name())
 		srcFile = newDownloadHgBinaryFile
 	}
