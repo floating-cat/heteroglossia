@@ -36,6 +36,11 @@ func NewServer(httpSOCKS *conf.HTTPSOCKS, targetClient transport.Client) transpo
 }
 
 func (s *server) ListenAndServe(ctx context.Context) error {
+	// when one listener returns, cancel the context so the sibling listener
+	// shuts down instead of running unsupervised
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	// can't listen to IPv4 & IPv6 together due to https://github.com/golang/go/issues/9334
 	// so also listen to IPv4 one when using '::1' or '::'
 	host := s.httpSOCKS.Host
@@ -59,7 +64,7 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 	}
 
 	addr := net.JoinHostPort(host, strconv.Itoa(int(s.httpSOCKS.Port)))
-	return parRunWithFirstErrReturn(func() error {
+	return parRunWithFirstErrReturn(cancel, func() error {
 		var unsetProxy func()
 		var hasUnsetProxy atomic.Bool
 		return netutil.ListenTCPAndServeWithListenerCallback(ctx, addr, connHandler, func(net.Listener) {
@@ -109,7 +114,7 @@ func (s *server) Serve(ctx context.Context, conn net.Conn) error {
 	}
 }
 
-func parRunWithFirstErrReturn(f1 func() error, f2 func() error) error {
+func parRunWithFirstErrReturn(cancel context.CancelFunc, f1 func() error, f2 func() error) error {
 	if f1 == nil {
 		return f2()
 	}
@@ -117,7 +122,7 @@ func parRunWithFirstErrReturn(f1 func() error, f2 func() error) error {
 		return f1()
 	}
 
-	ch := make(chan error, 1)
+	ch := make(chan error, 2)
 	go func() {
 		ch <- f1()
 	}()
@@ -126,8 +131,10 @@ func parRunWithFirstErrReturn(f1 func() error, f2 func() error) error {
 	}()
 
 	err := <-ch
-	if err != nil {
-		return err
-	}
-	return <-ch
+	// stop the sibling listener so it doesn't keep its socket bound and its
+	// goroutine running after the first one has returned
+	cancel()
+	// drain the sibling's result so its goroutine doesn't leak
+	<-ch
+	return err
 }
