@@ -10,6 +10,6 @@ func StartUpdateCron(f func()) {
 	f()
 	tick := time.Tick(day)
 	for range tick {
-		go f()
+		f()
 	}
 }
