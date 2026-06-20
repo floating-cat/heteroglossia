@@ -122,7 +122,7 @@ func (s *server) Serve(ctx context.Context, conn net.Conn) error {
 	}
 	if isTrojan {
 		crlfBs := make([]byte, 2)
-		_, err := bufReader.Read(crlfBs)
+		_, err := ioutil.ReadFull(bufReader, crlfBs)
 		if err != nil {
 			return errors.WithStack(err)
 		}
