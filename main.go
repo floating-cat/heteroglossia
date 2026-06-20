@@ -49,7 +49,7 @@ func main() {
 	if config.Inbounds.Hg != nil {
 		go func() {
 			server := tr_carrier.NewServer(config.Inbounds.Hg, routeClient)
-			err = server.ListenAndServe(context.Background())
+			err := server.ListenAndServe(context.Background())
 			if err != nil {
 				log.Fatal("fail to start the hg server", err)
 			}

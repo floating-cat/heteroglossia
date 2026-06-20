@@ -55,9 +55,7 @@ kwriteconfig6 --file kioslaverc --group 'Proxy Settings' --key socksProxy '%v'`)
 	if err != nil {
 		log.WarnWithError("fail to set system proxy for KDE 6", err)
 	}
-	return func() {
-		unsetSystemProxy()
-	}, nil
+	return unsetSystemProxy, nil
 }
 
 func unsetSystemProxy() {

@@ -76,14 +76,16 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 				if err != nil {
 					log.WarnWithError("fail to set the system proxy", err)
 				}
-				unsetProxy = func() {
-					if hasUnsetProxy.CompareAndSwap(false, true) {
-						unsetProxyFunction()
+				if unsetProxyFunction != nil {
+					unsetProxy = func() {
+						if hasUnsetProxy.CompareAndSwap(false, true) {
+							unsetProxyFunction()
+						}
 					}
+					osutil.RegisterProgramTerminationHandler(func() {
+						unsetProxy()
+					})
 				}
-				osutil.RegisterProgramTerminationHandler(func() {
-					unsetProxy()
-				})
 			}
 		}, func() {
 			if unsetProxy != nil {
