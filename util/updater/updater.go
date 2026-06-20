@@ -45,6 +45,7 @@ func updateFile(client *http.Client, filePath, fileURL, fileSHA256SumURL string)
 		//goland:noinspection GoDeferInLoop
 		defer func(file *os.File) {
 			_ = file.Close()
+			_ = os.Remove(file.Name())
 		}(file)
 		files = append(files, file)
 	}
@@ -77,28 +78,32 @@ func updateFile(client *http.Client, filePath, fileURL, fileSHA256SumURL string)
 		}
 		defer func() {
 			_ = newDownloadHgBinaryFile.Close()
+			_ = os.Remove(newDownloadHgBinaryFile.Name())
 		}()
-		_ = os.Remove(files[0].Name())
 		srcFile = newDownloadHgBinaryFile
 	}
 
-	// only remove SHA256Sum file finally, so we could check these files when an error occurs
-	_ = os.Remove(files[1].Name())
 	err = replaceFile(srcFile, filePath)
 	if err != nil {
 		return err
 	}
-	_ = os.Remove(srcFile.Name())
 	return nil
 }
 
-func downloadFile(client *http.Client, url string) (*os.File, error) {
+func downloadFile(client *http.Client, url string) (_ *os.File, err error) {
 	filename := path.Base(url)
-	//goland:noinspection GoResourceLeak
 	file, err := os.CreateTemp("", filename)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
+	// On error the caller never receives the file, so close and remove it here to
+	// avoid leaking the temp file. On success the caller owns it.
+	defer func() {
+		if err != nil {
+			_ = file.Close()
+			_ = os.Remove(file.Name())
+		}
+	}()
 
 	resp, err := client.Get(url)
 	if err != nil {
