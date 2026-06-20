@@ -110,8 +110,11 @@ func (s *server) Serve(ctx context.Context, conn net.Conn) error {
 	}
 
 	commandType, err := ioutil.Read1(bufReader)
+	if err != nil {
+		return err
+	}
 	if commandType != socks.ConnectionCommandConnect {
-		return errors.Newf("unsupported command type %v", lineBs[1])
+		return errors.Newf("unsupported command type %v", commandType)
 	}
 	accessAddr, err := socks.ReadSOCKS5Address(bufReader)
 	if err != nil {
