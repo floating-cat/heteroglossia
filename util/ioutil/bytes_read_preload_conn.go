@@ -56,7 +56,7 @@ func (c *bytesReadPreloadConn) ReadFrom(r io.Reader) (n int64, err error) {
 func (c *bytesReadPreloadConn) WriteTo(w io.Writer) (n int64, err error) {
 	var count int
 	if c.preloadBs != nil {
-		count, err := c.readPreloadData(nil, w)
+		count, err = c.readPreloadData(nil, w)
 		if err != nil {
 			return int64(count), err
 		}
