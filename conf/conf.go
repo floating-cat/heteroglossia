@@ -12,7 +12,7 @@ import (
 type Config struct {
 	Inbounds  Inbounds              `json:"inbounds" valid:"dive"`
 	Outbounds map[string]*ProxyNode `json:"outbounds"`
-	Route     Route                 `json:"route" valid:"dive"`
+	Route     *Route                `json:"route" valid:"dive"`
 	Misc      Misc                  `json:"misc" valid:"dive"`
 }
 
@@ -146,8 +146,8 @@ func (pair *TLSCertKeyPair) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (rules Rules) setupRulesData() error {
-	store, err := libRule.NewDomainIPSetRulesQueryStore()
+func (rules Rules) setupRulesData(ruleDBFilePath string) error {
+	store, err := libRule.NewDomainIPSetRulesQueryStore(ruleDBFilePath)
 	if err != nil {
 		return err
 	}
@@ -162,7 +162,7 @@ func (rules Rules) setupRulesData() error {
 	return nil
 }
 
-func (rules Rules) CopyWithNewRulesData() (Rules, error) {
+func (rules Rules) CopyWithNewRulesData(ruleDBFilePath string) (Rules, error) {
 	newRules := make([]Rule, 0, len(rules))
 	for _, oldRule := range rules {
 		var newRule Rule
@@ -172,7 +172,7 @@ func (rules Rules) CopyWithNewRulesData() (Rules, error) {
 		newRules = append(newRules, newRule)
 	}
 
-	err := Rules(newRules).setupRulesData()
+	err := Rules(newRules).setupRulesData(ruleDBFilePath)
 	if err != nil {
 		return nil, err
 	}

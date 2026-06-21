@@ -12,8 +12,6 @@ import (
 type domainType int
 
 const (
-	DomainIPSetRulesDBFilename = "domain-ip-set-rules.db"
-
 	domainFull    = 0
 	domainSuffix  = 1
 	domainKeyword = 2
@@ -39,14 +37,14 @@ type DomainIPSetRulesQueryStore struct {
 	db *sql.DB
 }
 
-func NewDomainIPSetRulesQueryStore() (*DomainIPSetRulesQueryStore, error) {
+func NewDomainIPSetRulesQueryStore(ruleDBFilePath string) (*DomainIPSetRulesQueryStore, error) {
 	// sql.Open doesn't check file existence, so we check it manually
-	_, err := os.Stat(DomainIPSetRulesDBFilename)
+	_, err := os.Stat(ruleDBFilePath)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	db, err := sql.Open("sqlite", DomainIPSetRulesDBFilename)
+	db, err := sql.Open("sqlite", ruleDBFilePath)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

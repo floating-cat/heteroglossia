@@ -13,6 +13,8 @@ func Parse() Args {
 	var showVersion bool
 	fs.BoolVar(&showVersion, "version", false, "")
 	fs.BoolVar(&showVersion, "v", false, "")
+	var rulesDBFile string
+	fs.StringVar(&rulesDBFile, "db", "", "")
 	fs.Usage = func() {
 		usage := fmt.Sprintf(`%v
 Usage: %v [CONFIG_FILE]
@@ -21,6 +23,7 @@ Positional arguments:
   CONFIG_FILE            config file to use
 
 Options:
+  -db DB_FILE            domain & IP set rules database file to use
   -h, --help             display this help and exit
   -v, --version          display version and exit`, appNameWithVersion, AppName)
 		_, _ = fmt.Fprintln(fs.Output(), usage)
@@ -36,11 +39,12 @@ Options:
 		osutil.Exit(0)
 	}
 
-	return Args{ConfigFile: fs.Arg(0)}
+	return Args{ConfigFile: fs.Arg(0), RulesDBFile: rulesDBFile}
 }
 
 type Args struct {
-	ConfigFile string
+	ConfigFile  string
+	RulesDBFile string
 }
 
 const (

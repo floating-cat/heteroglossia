@@ -18,18 +18,20 @@ import (
 )
 
 type client struct {
-	route        *conf.Route
-	routeRWMutex *sync.RWMutex
-	outbounds    map[string]*conf.ProxyNode
-	tlsKeyLog    bool
+	route          *conf.Route
+	routeRWMutex   *sync.RWMutex
+	outbounds      map[string]*conf.ProxyNode
+	ruleDBFilePath string
+	tlsKeyLog      bool
 
 	httpClient *http.Client
 }
 
 var _ transport.Client = new(client)
 
-func NewClient(route *conf.Route, autoUpdateRuleFiles bool, outbounds map[string]*conf.ProxyNode, tlsKeyLog bool) transport.Client {
-	router := &client{route, new(sync.RWMutex), outbounds, tlsKeyLog, nil}
+func NewClient(route *conf.Route, outbounds map[string]*conf.ProxyNode,
+	ruleDBFilePath string, autoUpdateRuleFiles bool, tlsKeyLog bool) transport.Client {
+	router := &client{route, new(sync.RWMutex), outbounds, ruleDBFilePath, tlsKeyLog, nil}
 	router.httpClient = transport.HTTPClientThroughRouter(router)
 	if autoUpdateRuleFiles {
 		go updater.StartUpdateCron(func() {
@@ -40,40 +42,40 @@ func NewClient(route *conf.Route, autoUpdateRuleFiles bool, outbounds map[string
 }
 
 func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (net.Conn, error) {
-	c.routeRWMutex.RLock()
 	var policy string
+	if c.route != nil {
+		c.routeRWMutex.RLock()
+	matchAgain:
+		switch addr.AddrType {
+		case transport.IPv4, transport.IPv6:
+			for _, rule := range c.route.Rules {
+				if rule.Matcher.MatchIP(addr.IP) {
+					policy = rule.Policy
+					break
+				}
+			}
+		default:
+			for _, rule := range c.route.Rules {
+				if rule.Matcher.MatchDomain(addr.Domain) {
+					policy = rule.Policy
+					break
+				}
+			}
+			// some clients (e.g., Chrome SmartProxy extension) send IP addresses within domain types in the SOCKS protocol
+			ip, err := netip.ParseAddr(addr.Domain)
+			if err == nil {
+				addr = transport.NewSocketAddressByIP(&ip, addr.Port)
+				goto matchAgain
+			}
+		}
+		c.routeRWMutex.RUnlock()
 
-matchAgain:
-	switch addr.AddrType {
-	case transport.IPv4, transport.IPv6:
-		for _, rule := range c.route.Rules {
-			if rule.Matcher.MatchIP(addr.IP) {
-				policy = rule.Policy
-				break
-			}
-		}
-	default:
-		for _, rule := range c.route.Rules {
-			if rule.Matcher.MatchDomain(addr.Domain) {
-				policy = rule.Policy
-				break
-			}
-		}
-		// some clients (e.g., Chrome SmartProxy extension) send IP addresses within domain types in the SOCKS protocol
-		ip, err := netip.ParseAddr(addr.Domain)
-		if err == nil {
-			addr = transport.NewSocketAddressByIP(&ip, addr.Port)
-			goto matchAgain
-		}
-	}
-	c.routeRWMutex.RUnlock()
-	if policy == "final" || policy == "" {
-		if c.route.Final == "" {
-			// default to direct for Final field
-			policy = "direct"
-		} else {
+		if policy == "final" || policy == "" {
 			policy = c.route.Final
 		}
+	} else {
+		// default to direct if no route is configured
+		policy = "direct"
 	}
 
 	var nextClient transport.Client
@@ -96,7 +98,7 @@ matchAgain:
 }
 
 func (c *client) updateRoute() {
-	success, err := updater.UpdateRuleFile(c.httpClient)
+	success, err := updater.UpdateRuleDBFile(c.ruleDBFilePath, c.httpClient)
 	if err != nil {
 		log.WarnWithError("fail to update rules' files", err)
 		return
@@ -106,7 +108,7 @@ func (c *client) updateRoute() {
 	}
 
 	c.routeRWMutex.RLock()
-	newRules, err := c.route.Rules.CopyWithNewRulesData()
+	newRules, err := c.route.Rules.CopyWithNewRulesData(c.ruleDBFilePath)
 	if err != nil {
 		c.routeRWMutex.RUnlock()
 		log.WarnWithError("fail to update rules' 'matcher'", err)

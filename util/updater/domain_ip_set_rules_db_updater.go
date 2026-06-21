@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/floating-cat/heteroglossia/conf/rule"
 	"github.com/floating-cat/heteroglossia/util/log"
 )
 
@@ -15,8 +14,8 @@ const (
 	ruleFileNeedUpdateInterval = 15 * 10 * time.Hour
 )
 
-func UpdateRuleFile(client *http.Client) (bool, error) {
-	update, err := needUpdateFile(rule.DomainIPSetRulesDBFilename, ruleFileNeedUpdateInterval)
+func UpdateRuleDBFile(ruleDBFilePath string, client *http.Client) (bool, error) {
+	update, err := needUpdateFile(ruleDBFilePath, ruleFileNeedUpdateInterval)
 	if err != nil {
 		return false, err
 	}
@@ -25,7 +24,7 @@ func UpdateRuleFile(client *http.Client) (bool, error) {
 	}
 
 	log.Info("start to update rules' files")
-	err = updateFile(client, rule.DomainIPSetRulesDBFilename, domainIPSetRulesFileURL, domainIPSetRulesFileSHA256SumURL)
+	err = updateFile(client, ruleDBFilePath, domainIPSetRulesFileURL, domainIPSetRulesFileSHA256SumURL)
 	if err != nil {
 		return false, err
 	}

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/mdobak/go-xerrors"
@@ -39,8 +40,8 @@ func Print(w io.Writer, err error) {
 	_, _ = xerrors.Fprint(w, err)
 }
 
-// PrintWithoutStacktrace forked from xerrors.Print
-func PrintWithoutStacktrace(err error) {
+// PrintNoStack forked from xerrors.Print
+func PrintNoStack(err error) {
 	buf := &strings.Builder{}
 	first := true
 	for err != nil {
@@ -60,6 +61,6 @@ func PrintWithoutStacktrace(err error) {
 	}
 
 	if buf.Len() != 0 {
-		fmt.Print(buf.String())
+		_, _ = fmt.Fprint(os.Stderr, buf.String())
 	}
 }

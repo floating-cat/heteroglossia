@@ -2,24 +2,23 @@ package testutil
 
 import (
 	"context"
-	"encoding/json/v2"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/transport/direct"
-	"github.com/floating-cat/heteroglossia/util/ioutil"
 	"github.com/shoenig/test/must"
 )
 
 func TestClientServerConnection(t *testing.T, newClient func(proxyNode *conf.ProxyNode) (transport.Client, error),
 	newServer func(hg *conf.Hg, targetClient transport.Client) transport.Server) {
-	hg, err := newHg()
+	serverConf, err := conf.Parse("../../server_example.conf.json", "../../domain-ip-set-rules-sample.db")
 	must.NoError(t, err)
+	hg := serverConf.Inbounds.Hg
 	must.NotNil(t, hg)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {
@@ -45,24 +44,6 @@ func startWebServer() *httptest.Server {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	return httptest.NewServer(handler)
-}
-
-func newHg() (*conf.Hg, error) {
-	err := os.Chdir("../../")
-	if err != nil {
-		return nil, err
-	}
-	bs, err := ioutil.ReadFile("server_example.conf.json")
-	if err != nil {
-		return nil, err
-	}
-
-	config := &conf.Config{}
-	err = json.Unmarshal(bs, config)
-	if err != nil {
-		return nil, err
-	}
-	return config.Inbounds.Hg, nil
 }
 
 func toProxyNode(hg *conf.Hg) *conf.ProxyNode {

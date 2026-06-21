@@ -27,7 +27,7 @@ func init() {
 	})
 }
 
-func Parse(configFilePath string) (*Config, error) {
+func Parse(configFilePath string, ruleDBFilePath string) (*Config, error) {
 	bs, err := ioutil.ReadFile(configFilePath)
 	if err != nil {
 		return nil, err
@@ -39,7 +39,9 @@ func Parse(configFilePath string) (*Config, error) {
 		return nil, errors.Newf("fail to pase %v: %.0w", configFilePath, err)
 	}
 
-	err = config.Route.Rules.setupRulesData()
+	if config.Route != nil {
+		err = config.Route.Rules.setupRulesData(ruleDBFilePath)
+	}
 	if err != nil {
 		err = errors.Newf("field Route: field Rules: %.0w", err)
 	} else {
@@ -79,6 +81,9 @@ func validate(config *Config) error {
 // "reject".
 func validateRoute(config *Config) error {
 	route := config.Route
+	if route == nil {
+		return nil
+	}
 	outboundNames := strings.Join(maps.Keys(config.Outbounds), " ")
 
 	for i, rule := range route.Rules {
@@ -105,21 +110,21 @@ func resolveAllFilePathsToConfigFolder(config *Config, configFileFolder string) 
 	if hg != nil {
 		tlsCertKeyPair := config.Inbounds.Hg.TLSCertKeyPair
 		if tlsCertKeyPair != nil {
-			tlsCertKeyPair.CertFile = resolveTo(tlsCertKeyPair.CertFile, configFileFolder)
-			tlsCertKeyPair.KeyFile = resolveTo(tlsCertKeyPair.KeyFile, configFileFolder)
+			tlsCertKeyPair.CertFile = joinIfRelative(configFileFolder, tlsCertKeyPair.CertFile)
+			tlsCertKeyPair.KeyFile = joinIfRelative(configFileFolder, tlsCertKeyPair.KeyFile)
 		}
 		if hg.TLSBadAuthFallbackSiteDir != "" {
-			hg.TLSBadAuthFallbackSiteDir = resolveTo(hg.TLSBadAuthFallbackSiteDir, configFileFolder)
+			hg.TLSBadAuthFallbackSiteDir = joinIfRelative(configFileFolder, hg.TLSBadAuthFallbackSiteDir)
 		}
 	}
 	for _, v := range config.Outbounds {
 		if v.TLSCustomCertFile != "" {
-			v.TLSCustomCertFile = resolveTo(v.TLSCustomCertFile, configFileFolder)
+			v.TLSCustomCertFile = joinIfRelative(configFileFolder, v.TLSCustomCertFile)
 		}
 	}
 }
 
-func resolveTo(relativePath string, basePath string) string {
+func joinIfRelative(basePath string, relativePath string) string {
 	if filepath.IsAbs(relativePath) {
 		return relativePath
 	}

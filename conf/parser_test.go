@@ -7,11 +7,11 @@ import (
 )
 
 func TestValidateClientConfig(t *testing.T) {
-	_, err := Parse("../client_example.conf.json")
+	_, err := Parse("../client_example.conf.json", "../domain-ip-set-rules-sample.db")
 	must.NoError(t, err)
 }
 
 func TestValidateServerConfig(t *testing.T) {
-	_, err := Parse("../client_example.conf.json")
+	_, err := Parse("../server_example.conf.json", "../domain-ip-set-rules-sample.db")
 	must.NoError(t, err)
 }

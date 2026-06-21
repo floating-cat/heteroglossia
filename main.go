@@ -23,16 +23,17 @@ import (
 	"github.com/floating-cat/heteroglossia/util/updater"
 )
 
+const DefaultDomainIPSetRulesDBFileName = "domain-ip-set-rules.db"
+
 func main() {
-	configFile := cli.Parse().ConfigFile
-	configDir := filepath.Dir(configFile)
-	err := os.Chdir(configDir)
-	if err != nil {
-		log.WarnWithError("fail to change the current working directory", err, "path", configDir)
+	args := cli.Parse()
+	var ruleDBFilePath = args.RulesDBFile
+	if ruleDBFilePath == "" {
+		ruleDBFilePath = filepath.Join(filepath.Dir(args.ConfigFile), DefaultDomainIPSetRulesDBFileName)
 	}
-	config, err := conf.Parse(configFile)
+	config, err := conf.Parse(args.ConfigFile, ruleDBFilePath)
 	if err != nil {
-		errors.PrintWithoutStacktrace(err)
+		errors.PrintNoStack(err)
 		return
 	}
 
@@ -45,7 +46,9 @@ func main() {
 			}
 		}()
 	}
-	routeClient := router.NewClient(&config.Route, config.Misc.RulesFileAutoUpdate, config.Outbounds, config.Misc.TLSKeyLog)
+
+	routeClient := router.NewClient(config.Route, config.Outbounds,
+		ruleDBFilePath, config.Misc.RulesFileAutoUpdate, config.Misc.TLSKeyLog)
 	if config.Inbounds.Hg != nil {
 		go func() {
 			server := tr_carrier.NewServer(config.Inbounds.Hg, routeClient)
