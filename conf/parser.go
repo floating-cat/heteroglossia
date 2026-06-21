@@ -76,9 +76,6 @@ func validate(config *Config) error {
 	return nil
 }
 
-// validateRoute ensures route.final references an existing outbound proxy and
-// every route.rules.policy is either an existing outbound proxy, "direct" or
-// "reject".
 func validateRoute(config *Config) error {
 	route := config.Route
 	if route == nil {
@@ -88,19 +85,26 @@ func validateRoute(config *Config) error {
 
 	for i, rule := range route.Rules {
 		policy := rule.Policy
-		if policy == "direct" || policy == "reject" {
+		if policy == "direct" || policy == "reject" || policy == "final" {
 			continue
 		}
 		_, ok := config.Outbounds[policy]
 		if !ok {
-			return errors.Newf("field Route: field Rules: rule [%v]: policy %v must be \"direct\", \"reject\" "+
-				"or an outbound proxy name (%v)", i+1, policy, outboundNames)
+			return errors.Newf("field Route: field Rules: rule [%v]: "+
+				"field Policy %v must be \"direct\", \"reject\", \"final\" or an outbound proxy name (%v)",
+				i+1, policy, outboundNames)
 		}
 	}
-	_, ok := config.Outbounds[route.Final]
+
+	final := route.Final
+	if final == "direct" || final == "reject" {
+		return nil
+	}
+	_, ok := config.Outbounds[final]
 	if !ok {
-		return errors.Newf("field Route: field Final: %v does not match any outbound proxy name (%v)",
-			route.Final, outboundNames)
+		return errors.Newf("field Route: "+
+			"field Final %v must be \"direct\", \"reject\", or an outbound proxy name (%v)",
+			final, outboundNames)
 	}
 	return nil
 }

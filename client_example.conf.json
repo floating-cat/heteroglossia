@@ -29,10 +29,15 @@
       {
         "match": [
           "domain-full/example.org",
-          "domain-suffix/example.net",
-          "domain-regex/^[.+[.]example.edu]$"
+          "domain-suffix/example.net"
         ],
         "policy": "direct"
+      },
+      {
+        "match": [
+          "domain-regex/^[.+[.]example.edu]$"
+        ],
+        "policy": "final"
       },
       {
         "match": [
