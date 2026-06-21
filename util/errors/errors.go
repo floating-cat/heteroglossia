@@ -10,16 +10,14 @@ import (
 	"github.com/mdobak/go-xerrors"
 )
 
-// examples:
+// New examples:
 // New("access denied")
 // New("access denied", ErrReadError)
-
 var New = xerrors.New
 
-// examples:
+// Newf examples:
 // Newf("access denied: %v", "404")
 // Newf("access denied: %v: %.0w", "404", ErrReadError)
-
 var Newf = xerrors.Newf
 
 var WithStack = xerrors.New

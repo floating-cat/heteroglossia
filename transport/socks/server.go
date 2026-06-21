@@ -70,8 +70,7 @@ func (s *Server) ListenAndServe(context.Context) error {
 	panic("no implemented")
 }
 
-// handle SOCKS5 request without the first version byte
-
+// Serve handle SOCKS5 request without the first version byte
 func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 	return s.handleClientHelloRequest(ctx, conn)
 }

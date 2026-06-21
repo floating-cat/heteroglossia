@@ -10,8 +10,7 @@ import (
 
 const BufSize = 4096
 
-// includes file's abs path when an error occurs
-
+// ReadFile includes the file's abs path when an error occurs
 func ReadFile(filePath string) ([]byte, error) {
 	fullPath, err := filepath.Abs(filePath)
 	if err != nil {
@@ -32,17 +31,16 @@ func ReadN(r io.Reader, n int) (int, []byte, error) {
 	return count, bs, errors.WithStack(err)
 }
 
-// it's better to check 'io.Eof' case when using this function
+// https://github.com/Shadowsocks-NET/shadowsocks-specs/blob/main/2022-1-shadowsocks-2022-edition.md#313-detection-prevention
+// To process the salt and the fixed-length header, servers and clients MUST make exactly one read call
 
 func ReadOnceExpectFull(r io.Reader, buf []byte) (int, error) {
 	count, err := r.Read(buf)
 	if err == nil && count < len(buf) {
-		return count, errors.Newf("expect %v byte(s) in one read call, but got %v", len(buf), count)
+		return count, errors.Newf("expect %v byte(s) in one read call, but got %v: %w",
+			len(buf), count, io.ErrUnexpectedEOF)
 	}
-	if !errors.IsIoEof(err) {
-		err = errors.WithStack(err)
-	}
-	return count, err
+	return count, errors.WithStack(err)
 }
 
 func ReadFull(r io.Reader, buf []byte) (int, error) {

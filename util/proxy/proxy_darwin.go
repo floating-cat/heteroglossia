@@ -11,7 +11,6 @@ import (
 )
 
 // not work when macOS's 'System Settings -> VPN' is enabled
-
 func SetSystemProxy(host string, port uint16, authInfo *conf.HTTPSOCKSAuthInfo) (unsetProxy func(), err error) {
 	serviceName, err := currentNetworkServiceName()
 	if err != nil {

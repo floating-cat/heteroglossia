@@ -58,7 +58,7 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 			for _, rule := range c.route.Rules {
 				if rule.Matcher.MatchDomain(addr.Domain) {
 					policy = rule.Policy
-					break
+					break matchAgain
 				}
 			}
 			// some clients (e.g., Chrome SmartProxy extension) send IP addresses within domain types in the SOCKS protocol

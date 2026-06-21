@@ -99,7 +99,7 @@ func (c *conn) Write(p []byte) (n int, err error) {
 	return int(count), err
 }
 
-func (c *conn) writeClientFirstPayload(payload []byte) (int, error) {
+func (c *conn) writeClientFirstPayload(payload []byte) error {
 	payloadSize := len(payload)
 	var paddingSize, reqPaddingAndPayloadSize int
 	if payloadSize <= 0 {
@@ -128,11 +128,11 @@ func (c *conn) writeClientFirstPayload(payload []byte) (int, error) {
 	reqFixedLenHeaderBuf.WriteByte(clientStreamHeaderType)
 	err := binary.Write(reqFixedLenHeaderBuf, binary.BigEndian, uint64(time.Now().Unix()))
 	if err != nil {
-		return 0, errors.WithStack(err)
+		return errors.WithStack(err)
 	}
 	err = binary.Write(reqFixedLenHeaderBuf, binary.BigEndian, uint16(reqVarLenHeaderSize))
 	if err != nil {
-		return 0, errors.WithStack(err)
+		return errors.WithStack(err)
 	}
 
 	// Request variable-length header
@@ -146,7 +146,7 @@ func (c *conn) writeClientFirstPayload(payload []byte) (int, error) {
 	socks.WriteSOCKSLikeAddr(reqVarLenHeaderBuf, c.accessAddr)
 	err = binary.Write(reqVarLenHeaderBuf, binary.BigEndian, uint16(paddingSize))
 	if err != nil {
-		return 0, errors.WithStack(err)
+		return errors.WithStack(err)
 	}
 	if payloadSize < 0 {
 		_ = randutil.RandBytes(reqVarLenHeaderBs[reqPaddingOrPayloadStart : reqPaddingOrPayloadStart+paddingSize])
@@ -157,18 +157,14 @@ func (c *conn) writeClientFirstPayload(payload []byte) (int, error) {
 	copy(reqHeaderEncryptedBs, c.clientSalt)
 	clientAEAD, err := aeadCipher(c.preSharedKey, c.clientSalt)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	c.setAEADWriter(clientAEAD)
 	c.encryptInPlace(reqFixedLenHeaderBuf.Bytes())
 	c.encryptInPlace(reqVarLenHeaderBuf.Bytes())
 
 	_, err = c.TCPConn.Write(reqHeaderEncryptedBs)
-	if err != nil {
-		return 0, errors.WithStack(err)
-	}
-	// the total written count (reqHeaderEncryptedBs) is less than the one (payloadSize) written into 'c.TCPConn'
-	return payloadSize, nil
+	return errors.WithStack(err)
 }
 
 /*
@@ -179,7 +175,7 @@ First response stream
 | 16/32B |    27/43B + 16B tag    | variable length + 16B tag |
 +--------+------------------------+---------------------------+
 */
-func (c *conn) writeServerFirstPayload(payload []byte) (int, error) {
+func (c *conn) writeServerFirstPayload(payload []byte) error {
 	saltSize := len(c.preSharedKey)
 	payloadSize := len(payload)
 	respPayloadEncryptedStart := saltSize + reqFixedLenHeaderSize + saltSize + c.aeadOverhead
@@ -198,18 +194,18 @@ func (c *conn) writeServerFirstPayload(payload []byte) (int, error) {
 	respSaltWithFixedLenHeaderAndPayloadEncryptedBuf.WriteByte(serverStreamHeaderType)
 	err := binary.Write(respSaltWithFixedLenHeaderAndPayloadEncryptedBuf, binary.BigEndian, uint64(time.Now().Unix()))
 	if err != nil {
-		return 0, errors.WithStack(err)
+		return errors.WithStack(err)
 	}
 	respSaltWithFixedLenHeaderAndPayloadEncryptedBuf.Write(c.clientSalt)
 	err = binary.Write(respSaltWithFixedLenHeaderAndPayloadEncryptedBuf, binary.BigEndian, uint16(payloadSize))
 	if err != nil {
-		return 0, errors.WithStack(err)
+		return errors.WithStack(err)
 	}
 	copy(respSaltWithFixedLenHeaderAndPayloadEncryptedBuf.AvailableBuffer()[c.aeadOverhead:c.aeadOverhead+payloadSize], payload)
 
 	serverAEAD, err := aeadCipher(c.preSharedKey, serverSalt)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	c.setAEADWriter(serverAEAD)
 
@@ -219,9 +215,9 @@ func (c *conn) writeServerFirstPayload(payload []byte) (int, error) {
 	c.encryptInPlace(respVarLenHeaderEncryptedBs[:payloadSize])
 	_, err = c.TCPConn.Write(respSaltWithFixedLenHeaderAndPayloadEncryptedBs)
 	if err != nil {
-		return 0, err
+		return err
 	}
-	return payloadSize, err
+	return err
 }
 
 func (c *conn) Read(b []byte) (n int, err error) {
@@ -286,7 +282,7 @@ func (c *conn) readServerFirstPayload(b []byte, w io.Writer) (int, error) {
 	respSaltWithFixedLenHeaderEncryptedBs := pool.Get(saltSize + reqFixedLenHeaderSize + saltSize + c.aeadOverhead)
 	defer pool.Put(respSaltWithFixedLenHeaderEncryptedBs)
 	_, err := ioutil.ReadOnceExpectFull(c.TCPConn, respSaltWithFixedLenHeaderEncryptedBs)
-	if err != nil && !errors.IsIoEof(err) {
+	if err != nil {
 		return 0, err
 	}
 
@@ -476,9 +472,9 @@ func (c *conn) ReadFrom(r io.Reader) (n int64, err error) {
 			return n, err
 		}
 		if c.isClient {
-			_, err = c.writeClientFirstPayload(maxPayloadReadBs[:count])
+			err = c.writeClientFirstPayload(maxPayloadReadBs[:count])
 		} else {
-			_, err = c.writeServerFirstPayload(maxPayloadReadBs[:count])
+			err = c.writeServerFirstPayload(maxPayloadReadBs[:count])
 		}
 		if err != nil {
 			return n, err
