@@ -1,7 +1,7 @@
 .idea
 *.iml
 
-log/*
+log/
 hg_client
 hg_server
 heteroglossia
