@@ -5,10 +5,12 @@ import (
 	"net"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/ioutil"
 	"github.com/twharmon/govalid"
+	"golang.org/x/exp/maps"
 )
 
 func init() {
@@ -39,10 +41,10 @@ func Parse(configFilePath string) (*Config, error) {
 
 	err = config.Route.Rules.setupRulesData()
 	if err != nil {
-		return nil, err
+		err = errors.Newf("field Route: field Rules: %.0w", err)
+	} else {
+		err = validate(config)
 	}
-
-	err = validate(config)
 	if err != nil {
 		return nil, errors.Newf("fail to parse the config file %v: %.0w", configFilePath, err)
 	}
@@ -63,6 +65,37 @@ func validate(config *Config) error {
 		if err != nil {
 			return errors.Newf("field Outbounds: field %v: %.0w", proxyNodeName, err)
 		}
+	}
+
+	err = validateRoute(config)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// validateRoute ensures route.final references an existing outbound proxy and
+// every route.rules.policy is either an existing outbound proxy, "direct" or
+// "reject".
+func validateRoute(config *Config) error {
+	route := config.Route
+	outboundNames := strings.Join(maps.Keys(config.Outbounds), " ")
+
+	for i, rule := range route.Rules {
+		policy := rule.Policy
+		if policy == "direct" || policy == "reject" {
+			continue
+		}
+		_, ok := config.Outbounds[policy]
+		if !ok {
+			return errors.Newf("field Route: field Rules: rule [%v]: policy %v must be \"direct\", \"reject\" "+
+				"or an outbound proxy name (%v)", i+1, policy, outboundNames)
+		}
+	}
+	_, ok := config.Outbounds[route.Final]
+	if !ok {
+		return errors.Newf("field Route: field Final: %v does not match any outbound proxy name (%v)",
+			route.Final, outboundNames)
 	}
 	return nil
 }

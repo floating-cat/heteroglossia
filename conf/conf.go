@@ -76,7 +76,7 @@ func (pw *HexPassword) UnmarshalJSON(data []byte) error {
 	var pwStr string
 	err := json.Unmarshal(data, &pwStr)
 	if err != nil {
-		return errors.New("fail to parse the 'password' field", err)
+		return errors.New("fail to parse the \"password\" field", err)
 	}
 
 	bs, err := hex.DecodeString(pwStr)
@@ -134,12 +134,12 @@ func (pair *TLSCertKeyPair) UnmarshalJSON(data []byte) error {
 	var certKeyStr string
 	err := json.Unmarshal(data, &certKeyStr)
 	if err != nil {
-		return errors.New("fail to parse the 'tls-cert-key-pair' field", err)
+		return errors.New("fail to parse the \"tls-cert-key-pair\" field", err)
 	}
 
 	certKeyPairs := strings.Split(certKeyStr, " ")
 	if len(certKeyPairs) != 2 {
-		return errors.New("the certificate and key file's paths must be separated by whitespace, e.g. 'tls-cert-key-pair = \"tls_cert.pem tls_key.pem\"'")
+		return errors.New("the certificate and key file's paths must be separated by whitespace, e.g. \"tls-cert-key-pair\" = \"tls_cert.pem tls_key.pem\"")
 	}
 	pair.CertFile = certKeyPairs[0]
 	pair.KeyFile = certKeyPairs[1]
@@ -153,10 +153,10 @@ func (rules Rules) setupRulesData() error {
 	}
 	defer store.Close()
 
-	for _, rule := range rules {
+	for i, rule := range rules {
 		err := rule.Matcher.SetupRulesData(store)
 		if err != nil {
-			return err
+			return errors.Newf("rule [%v]: %.0w", i+1, err)
 		}
 	}
 	return nil

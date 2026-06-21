@@ -80,13 +80,12 @@ func (store *DomainIPSetRulesQueryStore) queryDomainRulesByTag(tag string, consu
 		case domainFull, domainSuffix, domainKeyword, domainRegex:
 			consumer(domainType(domainTypeID), domain)
 		default:
-			return errors.Newf("invalid domain type %v when querying domain rules by tag 'domain-tag/%v'",
-				domainTypeID, tag)
+			return errors.Newf("invalid domain type %v when querying database", domainTypeID)
 		}
 	}
 
 	if !atLeastOneRow {
-		return errors.Newf("no domain found when querying domain rules by tag 'domain-tag/%v'", tag)
+		return errors.Newf("no related domain found when querying database")
 	}
 	err = rows.Err()
 	if err != nil {
@@ -126,12 +125,12 @@ func (store *DomainIPSetRulesQueryStore) queryIPSetRulesByTag(tag string, consum
 				return err
 			}
 		default:
-			return errors.Newf("invalid CIDR type %v when querying IP set rules by tag 'ip-set-tag/cn/%v'", cidrTypeID, tag)
+			return errors.Newf("invalid CIDR type %v when querying database", cidrTypeID)
 		}
 	}
 
 	if !atLeastOneRow {
-		return errors.Newf("no domain found when querying domain rules by tag 'ip-set-tag/cn/%v'", tag)
+		return errors.Newf("no related IP set found when querying database")
 	}
 	err = rows.Err()
 	if err != nil {

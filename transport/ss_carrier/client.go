@@ -34,7 +34,7 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 	hostWithPort := c.proxyNode.Host + ":" + strconv.Itoa(c.proxyNode.TCPPort)
 	targetConn, err := netutil.DialTCP(ctx, hostWithPort)
 	if err != nil {
-		return nil, errors.Newf("fail to connect to the TCP server %v: %0.w", hostWithPort, err)
+		return nil, errors.Newf("fail to connect to the TCP server %v: %.0w", hostWithPort, err)
 	}
 	return newClientConn(targetConn, addr, c.preSharedKey, clientSalt, c.aeadOverhead), nil
 }

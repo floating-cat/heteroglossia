@@ -44,18 +44,22 @@ func PrintWithoutStacktrace(err error) {
 	buf := &strings.Builder{}
 	first := true
 	for err != nil {
-		_, ok := errors.AsType[xerrors.DetailedError](err)
+		errDetails := ""
+		dErr, ok := errors.AsType[xerrors.DetailedError](err)
 		if ok {
+			errDetails = dErr.ErrorDetails()
+		}
+		if errDetails != "" {
 			if first {
 				buf.WriteString("Error: ")
 			}
-			buf.WriteString(err.Error())
+			buf.WriteString(err.Error() + "\n")
 		}
 		first = false
 		err = errors.Unwrap(err)
 	}
 
 	if buf.Len() != 0 {
-		fmt.Println(buf.String())
+		fmt.Print(buf.String())
 	}
 }

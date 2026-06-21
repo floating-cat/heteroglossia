@@ -39,7 +39,9 @@ func (matcher *Matcher) SetupRulesData(rulesQueryStore *DomainIPSetRulesQuerySto
 	var domainRegexMatcher []regexp.Regexp
 	ipPrefixSet := new(bart.Fast[any])
 
-	for _, rule := range matcher.bakedMatchRules {
+	var err error
+	var regex *regexp.Regexp
+	for i, rule := range matcher.bakedMatchRules {
 		switch {
 		case strings.HasPrefix(rule, domainFullPrefix):
 			domain := strings.TrimPrefix(rule, domainFullPrefix)
@@ -51,50 +53,57 @@ func (matcher *Matcher) SetupRulesData(rulesQueryStore *DomainIPSetRulesQuerySto
 
 		case strings.HasPrefix(rule, domainRegexPrefix):
 			domainRegex := strings.TrimPrefix(rule, domainRegexPrefix)
-			regex := regexp.MustCompile(domainRegex)
+			regex, err = regexp.Compile(domainRegex)
+			if err != nil {
+				break
+			}
 			domainRegexMatcher = append(domainRegexMatcher, *regex)
 
 		case strings.HasPrefix(rule, ipPrefix):
 			ip := strings.TrimPrefix(rule, ipPrefix)
 			addr := netip.MustParseAddr(ip)
-			prefix, err := toPrefixUnmapped(addr, addr.BitLen())
+			var prefix netip.Prefix
+			prefix, err = toPrefixUnmapped(addr, addr.BitLen())
 			if err != nil {
-				return err
+				break
 			}
 			ipPrefixSet.Insert(prefix, nil)
 
 		case strings.HasPrefix(rule, cidrPrefix):
 			cidr := strings.TrimPrefix(rule, cidrPrefix)
 			prefix := netip.MustParsePrefix(cidr)
-			prefix, err := toPrefixUnmapped(prefix.Addr(), prefix.Bits())
+			prefix, err = toPrefixUnmapped(prefix.Addr(), prefix.Bits())
 			if err != nil {
-				return err
+				break
 			}
 			ipPrefixSet.Insert(prefix, nil)
 
 		case strings.HasPrefix(rule, domainTagPrefix):
 			domainTag := strings.TrimPrefix(rule, domainTagPrefix)
-			err := rulesQueryStore.queryDomainRulesByTag(domainTag, func(domainType domainType, domain string) {
+			err = rulesQueryStore.queryDomainRulesByTag(domainTag, func(domainType domainType, domain string) {
 				switch domainType {
 				case domainFull:
 					matcher.domainFullAndSuffixMatcher.addDomainFullRule(domain)
 				case domainSuffix:
 					matcher.domainFullAndSuffixMatcher.addDomainSuffixRule(domain)
 				case domainKeyword:
-					regex := regexp.MustCompile("^.*" + regexp.QuoteMeta(domain) + ".*$")
+					regex, err = errors.WithStack2(regexp.Compile("^.*" + regexp.QuoteMeta(domain) + ".*$"))
+					if err != nil {
+						break
+					}
 					domainRegexMatcher = append(domainRegexMatcher, *regex)
 				case domainRegex:
-					regex := regexp.MustCompile(domain)
+					regex, err = regexp.Compile(domain)
+					if err != nil {
+						break
+					}
 					domainRegexMatcher = append(domainRegexMatcher, *regex)
 				}
 			})
-			if err != nil {
-				return err
-			}
 
 		case strings.HasPrefix(rule, ipSetTagPrefix):
 			ipSetTag := strings.TrimPrefix(rule, ipSetTagPrefix)
-			err := rulesQueryStore.queryIPSetRulesByTag(ipSetTag, func(ip netip.Addr, bits int) error {
+			err = rulesQueryStore.queryIPSetRulesByTag(ipSetTag, func(ip netip.Addr, bits int) error {
 				prefix, err := toPrefixUnmapped(ip, ip.BitLen())
 				if err != nil {
 					return err
@@ -102,11 +111,11 @@ func (matcher *Matcher) SetupRulesData(rulesQueryStore *DomainIPSetRulesQuerySto
 				ipPrefixSet.Insert(prefix, nil)
 				return nil
 			})
-			if err != nil {
-				return err
-			}
 		default:
-			return errors.Newf("no matched rule item %v", rule)
+			return errors.Newf("fail to parse match [%v] \"%v\"", i+1, rule)
+		}
+		if err != nil {
+			return errors.Newf("fail to parse match [%v] \"%v\": %.0w", i+1, rule, err)
 		}
 	}
 
