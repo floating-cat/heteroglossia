@@ -104,7 +104,7 @@ func (matcher *Matcher) SetupRulesData(rulesQueryStore *DomainIPSetRulesQuerySto
 		case strings.HasPrefix(rule, ipSetTagPrefix):
 			ipSetTag := strings.TrimPrefix(rule, ipSetTagPrefix)
 			err = rulesQueryStore.queryIPSetRulesByTag(ipSetTag, func(ip netip.Addr, bits int) error {
-				prefix, err := toPrefixUnmapped(ip, ip.BitLen())
+				prefix, err := toPrefixUnmapped(ip, bits)
 				if err != nil {
 					return err
 				}

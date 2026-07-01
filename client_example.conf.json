@@ -28,8 +28,8 @@
     "rules": [
       {
         "match": [
-          "domain-full/example.org",
-          "domain-suffix/example.net"
+          "domain-tag/private",
+          "ip-set-tag/private"
         ],
         "policy": "direct"
       },
@@ -48,8 +48,8 @@
       },
       {
         "match": [
-          "domain-tag/scala",
-          "ip-set-tag/fastly"
+          "domain-full/example.org",
+          "domain-suffix/example.net"
         ],
         "policy": "node1"
       }

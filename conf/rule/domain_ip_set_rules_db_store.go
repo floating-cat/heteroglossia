@@ -159,9 +159,6 @@ func consumeCIDRsBytes(cidrsBytes []byte, ipv4 bool, tag string, consume func(ip
 		}
 
 		bits := int(cidrsBytes[i+cidrSize-1])
-		if ipv4 {
-			bits += 128 - 32
-		}
 		err := consume(ip, bits)
 		if err != nil {
 			return err
