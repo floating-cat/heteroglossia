@@ -29,11 +29,12 @@ var (
 	wrongAuthInfo = &conf.HTTPSOCKSAuthInfo{Username: "username", Password: "password1"}
 )
 
-func init() {
-	go startWebServer(webServerPort)
-}
-
 func TestProxyConnectionHandle(t *testing.T) {
+	webServer := startWebServer(webServerPort)
+	t.Cleanup(func() {
+		must.NoError(t, webServer.Close())
+	})
+
 	proxyProtocolInfo := []struct {
 		proxyProtocolName   string
 		proxyProtocolPrefix string
@@ -137,11 +138,16 @@ func startClient(authInfo *conf.HTTPSOCKSAuthInfo) error {
 	return err
 }
 
-func startWebServer(listenPort string) {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+func startWebServer(listenPort string) *http.Server {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
-	_ = http.ListenAndServe(listenPort, nil)
+	server := &http.Server{Addr: listenPort, Handler: mux}
+	go func() {
+		_ = server.ListenAndServe()
+	}()
+	return server
 }
 
 func parRun[X, Y any](f1 func() X, f2 func() Y) (X, Y) {
