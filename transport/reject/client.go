@@ -10,7 +10,7 @@ import (
 
 type client struct{}
 
-var _ transport.Client = new(client)
+var _ transport.Client = (*client)(nil)
 
 func NewClient() transport.Client {
 	return new(client)

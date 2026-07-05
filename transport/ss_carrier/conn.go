@@ -38,9 +38,9 @@ type conn struct {
 	serverSideSaltPool   *saltPool[string]
 }
 
-var _ net.Conn = new(conn)
-var _ io.ReaderFrom = new(conn)
-var _ io.WriterTo = new(conn)
+var _ net.Conn = (*conn)(nil)
+var _ io.ReaderFrom = (*conn)(nil)
+var _ io.WriterTo = (*conn)(nil)
 
 func newClientConn(tcpConn *net.TCPConn, accessAddr *transport.SocketAddress,
 	preSharedKey []byte, clientSalt []byte, aeadOverhead int) *conn {

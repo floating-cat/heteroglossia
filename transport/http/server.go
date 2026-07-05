@@ -19,7 +19,7 @@ type Server struct {
 	targetClient transport.Client
 }
 
-var _ transport.Server = new(Server)
+var _ transport.Server = (*Server)(nil)
 
 func NewServer(authInfo *conf.HTTPSOCKSAuthInfo, targetClient transport.Client) *Server {
 	return &Server{authInfo, targetClient}

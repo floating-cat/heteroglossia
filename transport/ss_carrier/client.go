@@ -21,7 +21,7 @@ type client struct {
 	exPicker func() int
 }
 
-var _ transport.Client = new(client)
+var _ transport.Client = (*client)(nil)
 
 func NewClient(proxyNode *conf.ProxyNode) transport.Client {
 	return &client{proxyNode, proxyNode.Password.Raw[:], gcmTagOverhead, randutil.WeightedIntN(2)}

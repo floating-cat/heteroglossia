@@ -27,7 +27,7 @@ type client struct {
 	httpClient *http.Client
 }
 
-var _ transport.Client = new(client)
+var _ transport.Client = (*client)(nil)
 
 func NewClient(route *conf.Route, outbounds map[string]*conf.ProxyNode,
 	ruleDBFilePath string, autoUpdateRuleFiles bool, tlsKeyLog bool) transport.Client {

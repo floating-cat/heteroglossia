@@ -27,7 +27,7 @@ type server struct {
 	socks *socks.Server
 }
 
-var _ transport.Server = new(server)
+var _ transport.Server = (*server)(nil)
 
 func NewServer(httpSOCKS *conf.HTTPSOCKS, targetClient transport.Client) transport.Server {
 	authInfo := httpSOCKS.ToHTTPSOCKSAuthInfo()

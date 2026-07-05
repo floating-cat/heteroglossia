@@ -18,7 +18,7 @@ type client struct {
 	passwordWithoutCRLF [16]byte
 }
 
-var _ transport.Client = new(client)
+var _ transport.Client = (*client)(nil)
 
 func NewClient(proxyNode *conf.ProxyNode, tlsKeyLog bool) (transport.Client, error) {
 	clientHandler := &client{proxyNode: proxyNode}

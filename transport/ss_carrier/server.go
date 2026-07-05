@@ -23,7 +23,7 @@ type server struct {
 	saltPool *saltPool[string]
 }
 
-var _ transport.Server = new(server)
+var _ transport.Server = (*server)(nil)
 
 func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
 	return &server{hg, targetClient, hg.Password.Raw[:], gcmTagOverhead, newSaltPool[string]()}

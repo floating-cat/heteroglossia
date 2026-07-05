@@ -19,9 +19,9 @@ type clientConn struct {
 	hasWriteFirstPayload bool
 }
 
-var _ net.Conn = new(clientConn)
-var _ io.ReaderFrom = new(clientConn)
-var _ io.WriterTo = new(clientConn)
+var _ net.Conn = (*clientConn)(nil)
+var _ io.ReaderFrom = (*clientConn)(nil)
+var _ io.WriterTo = (*clientConn)(nil)
 
 func newClientConn(conn net.Conn, accessAddr *transport.SocketAddress, passwordWithoutCRLF [16]byte) *clientConn {
 	return &clientConn{conn, accessAddr, passwordWithoutCRLF, false}

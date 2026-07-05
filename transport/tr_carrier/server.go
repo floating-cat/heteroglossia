@@ -31,7 +31,7 @@ type server struct {
 	tlsBadAuthFallbackServerPort uint16
 }
 
-var _ transport.Server = new(server)
+var _ transport.Server = (*server)(nil)
 
 func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
 	server := &server{hg: hg, targetClient: targetClient}

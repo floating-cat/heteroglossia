@@ -10,9 +10,9 @@ type bytesReadPreloadConn struct {
 	net.Conn
 }
 
-var _ net.Conn = new(bytesReadPreloadConn)
-var _ io.ReaderFrom = new(bytesReadPreloadConn)
-var _ io.WriterTo = new(bytesReadPreloadConn)
+var _ net.Conn = (*bytesReadPreloadConn)(nil)
+var _ io.ReaderFrom = (*bytesReadPreloadConn)(nil)
+var _ io.WriterTo = (*bytesReadPreloadConn)(nil)
 
 func NewBytesReadPreloadConn(preloadBs []byte, conn net.Conn) net.Conn {
 	if len(preloadBs) > 0 {
