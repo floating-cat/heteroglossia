@@ -72,7 +72,7 @@ func startServerAndClient(proxyProtocolPrefix, webServerAddrWithPort string,
 }
 
 func startProxyServer(t *testing.T, authInfo *conf.HTTPSOCKSAuthInfo, listenSuccessCallback func(ln net.Listener)) error {
-	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 	defer cancel()
 	done := make(chan error, 1)
 	var err error
