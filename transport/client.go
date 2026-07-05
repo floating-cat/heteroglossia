@@ -22,7 +22,7 @@ func HTTPClientThroughRouter(client Client) *http.Client {
 			return nil, err
 		}
 
-		ctx = contextutil.WithSourceAndInboundValues(ctx, "hg binary itself", "internal HTTP Client")
+		ctx = contextutil.WithSourceAndInboundValues(ctx, "hg binary itself (e.g., binary/rule file updates)", "internal HTTP Client")
 		return client.DialTCP(ctx, addrStr)
 	}
 	return netutil.HTTPClient(tr)
