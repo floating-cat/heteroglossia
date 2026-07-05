@@ -4,13 +4,13 @@ import (
 	"context"
 	"math/rand/v2"
 	"net"
-	"strconv"
 
 	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/netutil"
 	"github.com/floating-cat/heteroglossia/util/randutil"
+	"github.com/floating-cat/heteroglossia/util/strutil"
 )
 
 type client struct {
@@ -31,7 +31,7 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 	clientSalt := generateSalt(c.preSharedKey)
 	c.customFirstReqPrefixes(clientSalt)
 
-	hostWithPort := c.proxyNode.Host + ":" + strconv.Itoa(c.proxyNode.TCPPort)
+	hostWithPort := c.proxyNode.Host + ":" + strutil.ToA(c.proxyNode.TCPPort)
 	targetConn, err := netutil.DialTCP(ctx, hostWithPort)
 	if err != nil {
 		return nil, errors.Newf("fail to connect to the TCP server %v: %.0w", hostWithPort, err)

@@ -3,13 +3,13 @@ package ss_carrier
 import (
 	"context"
 	"net"
-	"strconv"
 
 	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/util/contextutil"
 	"github.com/floating-cat/heteroglossia/util/log"
 	"github.com/floating-cat/heteroglossia/util/netutil"
+	"github.com/floating-cat/heteroglossia/util/strutil"
 )
 
 type server struct {
@@ -30,7 +30,7 @@ func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
 }
 
 func (s *server) ListenAndServe(ctx context.Context) error {
-	addr := ":" + strconv.Itoa(s.hg.TCPPort)
+	addr := ":" + strutil.ToA(s.hg.TCPPort)
 	return netutil.ListenTCPAndServe(ctx, addr, func(conn *net.TCPConn) {
 		ctx = contextutil.WithSourceAndInboundValues(ctx, conn.RemoteAddr().String(), "TCP carrier")
 		err := s.Serve(ctx, conn)

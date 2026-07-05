@@ -82,10 +82,13 @@ func Pipe(a, b io.ReadWriteCloser) error {
 
 	go cp(a, b)
 	go cp(b, a)
-	// only care about the first error as we close other directly when see the first error
-	err := <-done
-	if errors.IsIoEof(err) {
-		return nil
+	err1 := <-done
+	err2 := <-done
+	if errors.IsIoEof(err1) || errors.IsNetClosed(err1) {
+		err1 = nil
 	}
-	return errors.WithStack(err)
+	if errors.IsIoEof(err2) || errors.IsNetClosed(err2) {
+		err2 = nil
+	}
+	return errors.Append(err1, err2)
 }

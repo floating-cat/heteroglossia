@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"strings"
 
@@ -32,6 +33,10 @@ var Is = errors.Is
 
 func IsIoEof(err error) bool {
 	return errors.Is(err, io.EOF)
+}
+
+func IsNetClosed(err error) bool {
+	return errors.Is(err, net.ErrClosed)
 }
 
 func Print(w io.Writer, err error) {

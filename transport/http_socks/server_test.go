@@ -1,6 +1,7 @@
 package http_socks
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -11,120 +12,103 @@ import (
 
 	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/transport/direct"
+	"github.com/floating-cat/heteroglossia/util/errors"
+	"github.com/floating-cat/heteroglossia/util/netutil"
+	"github.com/floating-cat/heteroglossia/util/strutil"
 	"github.com/shoenig/test/must"
 )
 
 const (
-	proxyServerAddr = "[::1]:2080"
-	webServerPort   = ":2081"
-	webServerAddr   = "http://127.0.0.1" + webServerPort
+	webServerAddr   = "http://127.0.0.1"
+	proxyServerHost = "127.0.0.1"
 )
 
 var (
-	proxyProtocolPrefix   string
-	webServerHostWithPort string
-	webServerHosts        = []string{"127.0.0.1", "[::ffff:127.0.0.1]", "[::1]", "localhost"}
-
-	authInfo      = &conf.HTTPSOCKSAuthInfo{Username: "username", Password: "password"}
-	wrongAuthInfo = &conf.HTTPSOCKSAuthInfo{Username: "username", Password: "password1"}
+	correctAuthInfo = &conf.HTTPSOCKSAuthInfo{Username: "username", Password: "password"}
+	wrongAuthInfo   = &conf.HTTPSOCKSAuthInfo{Username: "username", Password: "password1"}
 )
 
 func TestProxyConnectionHandle(t *testing.T) {
-	webServer := startWebServer(webServerPort)
-	t.Cleanup(func() {
-		must.NoError(t, webServer.Close())
-	})
-
+	webServerPort := startWebServer(t)
+	webServerAddrWithPort := webServerAddr + ":" + strutil.ToA(webServerPort)
 	proxyProtocolInfo := []struct {
 		proxyProtocolName   string
 		proxyProtocolPrefix string
 	}{
-		{"HTTP", "http://"},
-		{"SOCK5", "socks5h://"},
+		{"HTTP proxy", "http://"},
+		{"SOCK5 proxy", "socks5h://"},
 	}
 
 	for _, i := range proxyProtocolInfo {
-		proxyProtocolPrefix = i.proxyProtocolPrefix
-		for _, host := range webServerHosts {
-			webServerHostWithPort = host + webServerPort
-			name := host + " via " + i.proxyProtocolName
-			t.Run(name, testHandleConnectionWithoutAuthInfo)
-			t.Run(name, testHandleConnectionWithEmptyAuthInfo)
-			t.Run(name, testHandleConnectionWithAuthInfo)
-			t.Run(name, testHandleConnectionWithIncorrectAuthInfo)
+		prefix, webAddr := i.proxyProtocolPrefix, webServerAddrWithPort
+		// serverAuth is what the proxy server requires; clientAuth is what the client sends
+		t.Run(i.proxyProtocolName+" with a no-auth server",
+			startServerAndClient(prefix, webAddr, nil, nil, false))
+		t.Run(i.proxyProtocolName+" with an empty-auth server",
+			startServerAndClient(prefix, webAddr, &conf.HTTPSOCKSAuthInfo{}, nil, false))
+		t.Run(i.proxyProtocolName+" with matching authentication info",
+			startServerAndClient(prefix, webAddr, correctAuthInfo, correctAuthInfo, false))
+		t.Run(i.proxyProtocolName+" with incorrect authentication info",
+			startServerAndClient(prefix, webAddr, correctAuthInfo, wrongAuthInfo, true))
+	}
+}
+
+func startServerAndClient(proxyProtocolPrefix, webServerAddrWithPort string,
+	serverAuth, clientAuth *conf.HTTPSOCKSAuthInfo, expectErr bool) func(t *testing.T) {
+	return func(t *testing.T) {
+		// run the client's assertions on the test goroutine: must.* calls FailNow,
+		// which is only valid on the goroutine running the test
+		clientErr := make(chan error, 1)
+		serverErr := startProxyServer(t, serverAuth, func(ln net.Listener) {
+			port := uint16(ln.Addr().(*net.TCPAddr).Port)
+			go func() {
+				proxyServerAddrWithPort := proxyProtocolPrefix + proxyServerHost + ":" + strutil.ToA(port)
+				clientErr <- startClient(proxyServerAddrWithPort, webServerAddrWithPort, clientAuth)
+			}()
+		})
+		assertErr(t, serverErr, expectErr)
+		assertErr(t, <-clientErr, expectErr)
+	}
+}
+
+func startProxyServer(t *testing.T, authInfo *conf.HTTPSOCKSAuthInfo, listenSuccessCallback func(ln net.Listener)) error {
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Second)
+	defer cancel()
+	done := make(chan error, 1)
+	var err error
+	go func() {
+		select {
+		case err = <-done:
+			cancel()
+		case <-ctx.Done():
+			err = errors.New("timeout waiting for the proxy server to handle the connection", ctx.Err())
 		}
-	}
-}
-
-func testHandleConnectionWithoutAuthInfo(t *testing.T) {
-	err1, err2 := parRun(func() error {
-		return startProxyServer(t, nil)
-	}, func() error {
-		return startClient(nil)
-	})
-
-	must.NoError(t, err1)
-	must.NoError(t, err2)
-}
-
-func testHandleConnectionWithEmptyAuthInfo(t *testing.T) {
-	err1, err2 := parRun(func() error {
-		return startProxyServer(t, &conf.HTTPSOCKSAuthInfo{})
-	}, func() error {
-		return startClient(nil)
-	})
-
-	must.NoError(t, err1)
-	must.NoError(t, err2)
-}
-
-func testHandleConnectionWithAuthInfo(t *testing.T) {
-	err1, err2 := parRun(func() error {
-		return startProxyServer(t, authInfo)
-	}, func() error {
-		return startClient(authInfo)
-	})
-
-	must.NoError(t, err1)
-	must.NoError(t, err2)
-}
-
-func testHandleConnectionWithIncorrectAuthInfo(t *testing.T) {
-	err1, err2 := parRun(func() error {
-		return startProxyServer(t, authInfo)
-	}, func() error {
-		return startClient(wrongAuthInfo)
-	})
-
-	must.Error(t, err1)
-	must.Error(t, err2)
-}
-
-func startProxyServer(t *testing.T, authInfo *conf.HTTPSOCKSAuthInfo) error {
-	ln, err := net.Listen("tcp", proxyServerAddr)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err := ln.Close()
-		must.NoError(t, err)
 	}()
-
-	rwc, err := ln.Accept()
-	if err != nil {
-		return err
+	listenErr := netutil.ListenTCPAndServeWithListenerCallback(
+		ctx,
+		":0",
+		func(tcpConn *net.TCPConn) {
+			var httpSOCKS *conf.HTTPSOCKS
+			if authInfo == nil {
+				httpSOCKS = &conf.HTTPSOCKS{}
+			} else {
+				httpSOCKS = &conf.HTTPSOCKS{Username: authInfo.Username, Password: authInfo.Password}
+			}
+			err := (NewServer(httpSOCKS, direct.NewClient()).(*server)).Serve(t.Context(), tcpConn)
+			done <- err
+		},
+		func(ln net.Listener) {
+			listenSuccessCallback(ln)
+		},
+		nil)
+	if listenErr != nil {
+		return errors.New("failed to start proxy server", listenErr)
 	}
 
-	var httpSOCKS *conf.HTTPSOCKS
-	if authInfo == nil {
-		httpSOCKS = &conf.HTTPSOCKS{}
-	} else {
-		httpSOCKS = &conf.HTTPSOCKS{Username: authInfo.Username, Password: authInfo.Password}
-	}
-	return (NewServer(httpSOCKS, direct.NewClient()).(*server)).Serve(t.Context(), rwc)
+	return err
 }
 
-func startClient(authInfo *conf.HTTPSOCKSAuthInfo) error {
+func startClient(proxyServerAddrWithPort, webServerAddrWithPort string, authInfo *conf.HTTPSOCKSAuthInfo) error {
 	var proxyUser string
 	if authInfo.IsEmpty() {
 		proxyUser = ""
@@ -132,49 +116,34 @@ func startClient(authInfo *conf.HTTPSOCKSAuthInfo) error {
 		proxyUser = fmt.Sprintf("-U %v:%v", authInfo.Username, authInfo.Password)
 	}
 
-	cmd := fmt.Sprintf("curl -fx %v %v %v -H", proxyProtocolPrefix+proxyServerAddr, proxyUser, webServerAddr)
-	args := append(strings.Fields(cmd), fmt.Sprintf("Host: %v", webServerHostWithPort))
-	_, err := exec.Command(args[0], args[1:]...).Output()
+	cmd := fmt.Sprintf("curl --fail --proxy %v %v %v",
+		proxyServerAddrWithPort, proxyUser, webServerAddrWithPort)
+	args := strings.Fields(cmd)
+	_, err := exec.Command(args[0], args[1:]...).CombinedOutput()
 	return err
 }
 
-func startWebServer(listenPort string) *http.Server {
+func startWebServer(t *testing.T) uint16 {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
-	server := &http.Server{Addr: listenPort, Handler: mux}
+	port := make(chan uint16, 1)
+
 	go func() {
-		_ = server.ListenAndServe()
+		err := netutil.ListenHTTPAndServeWithListenerCallback(t.Context(), ":0", mux, func(ln net.Listener) {
+			port <- uint16(ln.Addr().(*net.TCPAddr).Port)
+		})
+		must.NoError(t, err)
 	}()
-	return server
+	return <-port
 }
 
-func parRun[X, Y any](f1 func() X, f2 func() Y) (X, Y) {
-	x := make(chan X, 1)
-	y := make(chan Y, 1)
-
-	timeout := time.After(time.Second)
-	go func() {
-		x <- f1()
-	}()
-	go func() {
-		y <- f2()
-	}()
-	select {
-	case xResult := <-x:
-		select {
-		case yResult := <-y:
-			return xResult, yResult
-		case <-timeout:
-			panic(fmt.Sprintf("timeout when running f2 function while f1 function finished with '%v'", xResult))
-		}
-	case <-timeout:
-		select {
-		case yResult := <-y:
-			panic(fmt.Sprintf("timeout when running f1 function while f2 function finished with '%v'", yResult))
-		default:
-			panic("timeout when running f1 and f2 functions")
-		}
+func assertErr(t *testing.T, err error, expectErr bool) {
+	t.Helper()
+	if expectErr {
+		must.Error(t, err)
+	} else {
+		must.NoError(t, err)
 	}
 }

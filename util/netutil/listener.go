@@ -105,12 +105,12 @@ func removeServerListener(listenerCloser io.Closer) {
 	serverListener.Delete(listenerCloser)
 }
 
-func accept(ln net.Listener, f func(conn net.Conn)) error {
+func accept(ln net.Listener, connHandler func(conn net.Conn)) error {
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
 			return errors.WithStack(err)
 		}
-		go f(conn)
+		go connHandler(conn)
 	}
 }

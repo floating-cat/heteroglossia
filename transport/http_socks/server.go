@@ -3,7 +3,6 @@ package http_socks
 import (
 	"context"
 	"net"
-	"strconv"
 	"sync/atomic"
 
 	"github.com/floating-cat/heteroglossia/conf"
@@ -17,6 +16,7 @@ import (
 	"github.com/floating-cat/heteroglossia/util/netutil"
 	"github.com/floating-cat/heteroglossia/util/osutil"
 	"github.com/floating-cat/heteroglossia/util/proxy"
+	"github.com/floating-cat/heteroglossia/util/strutil"
 )
 
 type server struct {
@@ -54,7 +54,7 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 
 	var ipv4RequestsHandlerForDualstack func() error
 	if host == "::1" {
-		ipv4Localhost := net.JoinHostPort("127.0.0.1", strconv.Itoa(int(s.httpSOCKS.Port)))
+		ipv4Localhost := net.JoinHostPort("127.0.0.1", strutil.ToA(s.httpSOCKS.Port))
 		ipv4RequestsHandlerForDualstack = func() error {
 			return netutil.ListenTCPAndServe(ctx, ipv4Localhost, connHandler)
 		}
@@ -63,7 +63,7 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 		host = ""
 	}
 
-	addr := net.JoinHostPort(host, strconv.Itoa(int(s.httpSOCKS.Port)))
+	addr := net.JoinHostPort(host, strutil.ToA(s.httpSOCKS.Port))
 	return parRunWithFirstErrReturn(cancel, func() error {
 		var unsetProxy func()
 		var hasUnsetProxy atomic.Bool

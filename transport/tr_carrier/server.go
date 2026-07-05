@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/netip"
 	"net/textproto"
-	"strconv"
 
 	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/transport"
@@ -17,6 +16,7 @@ import (
 	"github.com/floating-cat/heteroglossia/util/ioutil"
 	"github.com/floating-cat/heteroglossia/util/log"
 	"github.com/floating-cat/heteroglossia/util/netutil"
+	"github.com/floating-cat/heteroglossia/util/strutil"
 	pool "github.com/libp2p/go-buffer-pool"
 )
 
@@ -62,7 +62,7 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 	}()
 	s.tlsBadAuthFallbackServerPort = <-port
 
-	addr := ":" + strconv.Itoa(s.hg.TLSPort)
+	addr := ":" + strutil.ToA(s.hg.TLSPort)
 	return netutil.ListenTLSAndAccept(ctx, addr, s.tlsConfig, func(conn net.Conn) {
 		ctx = contextutil.WithSourceAndInboundValues(ctx, conn.RemoteAddr().String(), "TLS carrier")
 		err := s.Serve(ctx, conn)
@@ -96,9 +96,10 @@ func (s *server) Serve(ctx context.Context, conn net.Conn) error {
 			if err != nil {
 				return errors.WithStack(err)
 			}
-			// 2 = len(CRLF)
+			// assume CRLF line endings (len=2). This also works if the original request uses only LF
 			unrelatedBs := pool.Get(len(lineBs) + 2 + len(unreadBs))[:0]
 			defer pool.Put(unrelatedBs)
+			unrelatedBs = append(unrelatedBs, lineBs...)
 			unrelatedBs = append(unrelatedBs, crlf...)
 			unrelatedBs = append(unrelatedBs, unreadBs...)
 			fallbackAddr := transport.NewSocketAddressByIP(new(netip.IPv6Loopback()), s.tlsBadAuthFallbackServerPort)

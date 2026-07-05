@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"syscall"
 
 	"github.com/floating-cat/heteroglossia/conf"
@@ -20,6 +19,7 @@ import (
 	"github.com/floating-cat/heteroglossia/util/log"
 	"github.com/floating-cat/heteroglossia/util/netutil"
 	"github.com/floating-cat/heteroglossia/util/osutil"
+	"github.com/floating-cat/heteroglossia/util/strutil"
 	"github.com/floating-cat/heteroglossia/util/updater"
 )
 
@@ -40,7 +40,7 @@ func main() {
 	log.SetVerbose(config.Misc.VerboseLog)
 	if config.Misc.Profiling {
 		go func() {
-			err := netutil.ListenHTTPAndServe(context.Background(), ":"+strconv.Itoa(config.Misc.ProfilingPort), nil)
+			err := netutil.ListenHTTPAndServe(context.Background(), ":"+strutil.ToA(config.Misc.ProfilingPort), nil)
 			if err != nil {
 				log.Error("fail to start the profiling server", err)
 			}

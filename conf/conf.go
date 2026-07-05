@@ -43,11 +43,11 @@ func (httpSOCKS *HTTPSOCKS) ToHTTPSOCKSAuthInfo() *HTTPSOCKSAuthInfo {
 type Hg struct {
 	Host                      string          `json:"host" valid:"req|host"`
 	Password                  HexPassword     `json:"password,secure" valid:"dive"`
-	TCPPort                   int             `json:"tcp-port" valid:"min:1|max:65535"`
-	TLSPort                   int             `json:"tls-port" valid:"min:1|max:65535"`
+	TCPPort                   uint16          `json:"tcp-port" valid:"min:1|max:65535"`
+	TLSPort                   uint16          `json:"tls-port" valid:"min:1|max:65535"`
 	TLSCertKeyPair            *TLSCertKeyPair `json:"tls-cert-key-pair"`
 	TLSBadAuthFallbackSiteDir string          `json:"tls-bad-auth-fallback-site-dir"`
-	QUICPort                  int             `json:"quic-port" valid:"min:1|max:65535"`
+	QUICPort                  uint16          `json:"quic-port" valid:"min:1|max:65535"`
 }
 
 func (hg *Hg) UnmarshalJSON(data []byte) error {
@@ -61,10 +61,10 @@ func (hg *Hg) UnmarshalJSON(data []byte) error {
 type ProxyNode struct {
 	Host              string      `json:"host" valid:"req|host"`
 	Password          HexPassword `json:"password,secure" valid:"dive"`
-	TCPPort           int         `json:"tcp-port" valid:"min:1|max:65535"`
-	TLSPort           int         `json:"tls-port" valid:"min:1|max:65535"`
+	TCPPort           uint16      `json:"tcp-port" valid:"min:1|max:65535"`
+	TLSPort           uint16      `json:"tls-port" valid:"min:1|max:65535"`
 	TLSCustomCertFile string      `json:"tls-cert"`
-	QUICPort          int         `json:"quic-port" valid:"min:1|max:65535"`
+	QUICPort          uint16      `json:"quic-port" valid:"min:1|max:65535"`
 }
 
 type HexPassword struct {
@@ -109,12 +109,12 @@ type Rule struct {
 }
 
 type Misc struct {
-	HgBinaryAutoUpdate  bool `json:"hg-binary-auto-update"`
-	RulesFileAutoUpdate bool `json:"rules-file-auto-update"`
-	TLSKeyLog           bool `json:"tls-key-log"`
-	VerboseLog          bool `json:"verbose-log"`
-	Profiling           bool `json:"profiling"`
-	ProfilingPort       int  `json:"profiling-port" valid:"min:1|max:65535"`
+	HgBinaryAutoUpdate  bool   `json:"hg-binary-auto-update"`
+	RulesFileAutoUpdate bool   `json:"rules-file-auto-update"`
+	TLSKeyLog           bool   `json:"tls-key-log"`
+	VerboseLog          bool   `json:"verbose-log"`
+	Profiling           bool   `json:"profiling"`
+	ProfilingPort       uint16 `json:"profiling-port" valid:"min:1|max:65535"`
 }
 
 func (misc *Misc) UnmarshalJSON(data []byte) error {
