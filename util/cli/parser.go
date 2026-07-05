@@ -25,7 +25,7 @@ Positional arguments:
 Options:
   -db DB_FILE            domain & IP set rules database file to use
   -h, --help             display this help and exit
-  -v, --version          display version and exit`, appNameWithVersion, AppName)
+  -v, --version          display version and exit`, AppName+"(hg) "+Version, AppName)
 		_, _ = fmt.Fprintln(fs.Output(), usage)
 	}
 
@@ -47,8 +47,7 @@ type Args struct {
 	RulesDBFile string
 }
 
-const (
-	AppName            = "heteroglossia"
-	Version            = "(unknown version)" // without the v prefix
-	appNameWithVersion = AppName + "(hg) " + Version
-)
+const AppName = "heteroglossia"
+
+// Version needs to be a variable to be used with -ldflags
+var Version = "(unknown version)" // without the v prefix
