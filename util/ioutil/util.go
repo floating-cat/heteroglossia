@@ -73,21 +73,27 @@ func Write_(w io.Writer, response []byte) error {
 }
 
 func Pipe(a, b io.ReadWriteCloser) error {
-	done := make(chan error, 1)
-	cp := func(r, w io.ReadWriteCloser) {
-		_, err := io.Copy(r, w)
+	type closeWriter interface{ CloseWrite() error }
+	done := make(chan error, 2)
+	cp := func(dst, src io.ReadWriteCloser) {
+		_, err := io.Copy(dst, src)
+		cw, ok := dst.(closeWriter)
+		if ok {
+			_ = cw.CloseWrite()
+		}
 		done <- err
-		_ = r.Close()
 	}
 
 	go cp(a, b)
 	go cp(b, a)
 	err1 := <-done
 	err2 := <-done
-	if errors.IsIoEof(err1) || errors.IsNetClosed(err1) {
+	_ = a.Close()
+	_ = b.Close()
+	if errors.IsIoEof(err1) {
 		err1 = nil
 	}
-	if errors.IsIoEof(err2) || errors.IsNetClosed(err2) {
+	if errors.IsIoEof(err2) {
 		err2 = nil
 	}
 	return errors.Append(err1, err2)
