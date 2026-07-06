@@ -22,15 +22,16 @@ var (
 
 func listenTCPAndAccept(ctx context.Context, addr string,
 	listenHandler func(ln net.Listener) error, listenFinishedCallback func()) error {
-	// use 'context.WithCancel' to avoid memory leak in the below goroutine
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	// https://github.com/golang/go/issues/28120
+	// ctx in Listen func doesn't cancel listener,
+	// so we use cancel() with ln.Close() to close
 	ln, err := listenConfig.Listen(ctx, "tcp", addr)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 	go func() {
-		// https://github.com/golang/go/issues/28120
 		<-ctx.Done()
 		_ = ln.Close()
 	}()
@@ -43,7 +44,7 @@ func listenTCPAndAccept(ctx context.Context, addr string,
 	}()
 
 	err = listenHandler(ln)
-	if errors.Is(err, net.ErrClosed) {
+	if errors.IsNetClosed(err) {
 		return nil
 	}
 	return err
