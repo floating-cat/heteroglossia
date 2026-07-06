@@ -13,7 +13,7 @@ func WithSourceAndInboundValues(ctx context.Context, sourceAddr, inbound string)
 	return WithValues(ctx, SourceTag, sourceAddr, InboundTag, inbound)
 }
 
-func WithValues(ctx context.Context, kv ...interface{}) context.Context {
+func WithValues(ctx context.Context, kv ...any) context.Context {
 	if len(kv)%2 != 0 {
 		panic("odd numbers of key-value pairs")
 	}
