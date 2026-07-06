@@ -74,38 +74,38 @@ func startServerAndClient(proxyProtocolPrefix, webServerAddrWithPort string,
 func startProxyServer(t *testing.T, authInfo *conf.HTTPSOCKSAuthInfo, listenSuccessCallback func(ln net.Listener)) error {
 	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 	defer cancel()
-	done := make(chan error, 1)
-	var err error
+
+	serverErr := make(chan error, 1)
 	go func() {
-		select {
-		case err = <-done:
-			cancel()
-		case <-ctx.Done():
-			err = errors.New("timeout waiting for the proxy server to handle the connection", ctx.Err())
-		}
-	}()
-	listenErr := netutil.ListenTCPAndServeWithListenerCallback(
-		ctx,
-		":0",
-		func(tcpConn *net.TCPConn) {
+		listenErr := netutil.ListenTCPAndServeWithListenerCallback(ctx, ":0", func(tcpConn *net.TCPConn) {
 			var httpSOCKS *conf.HTTPSOCKS
 			if authInfo == nil {
 				httpSOCKS = &conf.HTTPSOCKS{}
 			} else {
 				httpSOCKS = &conf.HTTPSOCKS{Username: authInfo.Username, Password: authInfo.Password}
 			}
-			err := (NewServer(httpSOCKS, direct.NewClient()).(*server)).Serve(t.Context(), tcpConn)
-			done <- err
-		},
-		func(ln net.Listener) {
-			listenSuccessCallback(ln)
-		},
-		nil)
-	if listenErr != nil {
-		return errors.New("failed to start proxy server", listenErr)
-	}
 
-	return err
+			err := (NewServer(httpSOCKS, direct.NewClient()).(*server)).Serve(ctx, tcpConn)
+			select {
+			case serverErr <- err:
+			case <-ctx.Done():
+			}
+		}, listenSuccessCallback, nil)
+		if listenErr != nil {
+			select {
+			case serverErr <- errors.New("failed to start proxy server", listenErr):
+			case <-ctx.Done():
+			}
+		}
+	}()
+
+	select {
+	case err := <-serverErr:
+		// returning triggers the deferred cancel(), which stops the server listener
+		return err
+	case <-ctx.Done():
+		return errors.New("timeout waiting for the proxy server to handle the connection", ctx.Err())
+	}
 }
 
 func startClient(proxyServerAddrWithPort, webServerAddrWithPort string, authInfo *conf.HTTPSOCKSAuthInfo) error {

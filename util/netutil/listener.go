@@ -53,8 +53,8 @@ func ListenTCPAndServe(ctx context.Context, addr string, connHandler func(tcpCon
 	return ListenTCPAndServeWithListenerCallback(ctx, addr, connHandler, nil, nil)
 }
 
-func ListenTCPAndServeWithListenerCallback(ctx context.Context, addr string, connHandler func(tcpConn *net.TCPConn),
-	listenSuccessCallback func(ln net.Listener), listenFinishedCallback func()) error {
+func ListenTCPAndServeWithListenerCallback(ctx context.Context, addr string,
+	connHandler func(tcpConn *net.TCPConn), listenSuccessCallback func(ln net.Listener), listenFinishedCallback func()) error {
 	return listenTCPAndAccept(ctx, addr, func(ln net.Listener) error {
 		if listenSuccessCallback != nil {
 			listenSuccessCallback(ln)
@@ -69,7 +69,8 @@ func ListenHTTPAndServe(ctx context.Context, addr string, httpHandler http.Handl
 	return ListenHTTPAndServeWithListenerCallback(ctx, addr, httpHandler, nil)
 }
 
-func ListenHTTPAndServeWithListenerCallback(ctx context.Context, addr string, httpHandler http.Handler, listenerCallback func(ln net.Listener)) error {
+func ListenHTTPAndServeWithListenerCallback(ctx context.Context, addr string,
+	httpHandler http.Handler, listenerCallback func(ln net.Listener)) error {
 	return listenTCPAndAccept(ctx, addr, func(ln net.Listener) error {
 		if listenerCallback != nil {
 			listenerCallback(ln)
