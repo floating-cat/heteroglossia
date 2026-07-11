@@ -32,8 +32,8 @@ func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
 func (s *server) ListenAndServe(ctx context.Context) error {
 	addr := ":" + strutil.ToA(s.hg.TCPPort)
 	return netutil.ListenTCPAndServe(ctx, addr, func(conn *net.TCPConn) {
-		ctx = contextutil.WithSourceAndInboundValues(ctx, conn.RemoteAddr().String(), "TCP carrier")
-		err := s.Serve(ctx, conn)
+		connCtx := contextutil.WithSourceAndInboundValues(ctx, conn.RemoteAddr().String(), "TCP carrier")
+		err := s.Serve(connCtx, conn)
 		_ = conn.Close()
 		if err != nil {
 			log.InfoWithError("fail to handle a request over SS", err)

@@ -64,8 +64,8 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 
 	addr := ":" + strutil.ToA(s.hg.TLSPort)
 	return netutil.ListenTLSAndAccept(ctx, addr, s.tlsConfig, func(conn net.Conn) {
-		ctx = contextutil.WithSourceAndInboundValues(ctx, conn.RemoteAddr().String(), "TLS carrier")
-		err := s.Serve(ctx, conn)
+		connCtx := contextutil.WithSourceAndInboundValues(ctx, conn.RemoteAddr().String(), "TLS carrier")
+		err := s.Serve(connCtx, conn)
 		_ = conn.Close()
 		if err != nil {
 			log.InfoWithError("fail to handle a request over TLS", err)
