@@ -12,7 +12,7 @@ import (
 type Config struct {
 	Inbounds  Inbounds              `json:"inbounds" valid:"dive"`
 	Outbounds map[string]*ProxyNode `json:"outbounds"`
-	Route     *Route                `json:"route" valid:"dive"`
+	Routing   *Routing              `json:"routing" valid:"dive"`
 	Misc      Misc                  `json:"misc" valid:"dive"`
 }
 
@@ -96,7 +96,7 @@ func (node *ProxyNode) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, proxyNodeAlias)
 }
 
-type Route struct {
+type Routing struct {
 	Transport Transport `json:"transport" valid:"dive"`
 	Rules     Rules     `json:"rules" valid:"dive"`
 	Final     string    `json:"final"`

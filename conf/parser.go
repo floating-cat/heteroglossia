@@ -39,11 +39,11 @@ func Parse(configFilePath string, ruleDBFilePath string) (*Config, error) {
 		return nil, errors.Newf("fail to pase %v: %.0w", configFilePath, err)
 	}
 
-	if config.Route != nil {
-		err = config.Route.Rules.setupRulesData(ruleDBFilePath)
+	if config.Routing != nil {
+		err = config.Routing.Rules.setupRulesData(ruleDBFilePath)
 	}
 	if err != nil {
-		err = errors.Newf("field Route: field Rules: %.0w", err)
+		err = errors.Newf("field Routing: field Rules: %.0w", err)
 	} else {
 		err = validate(config)
 	}
@@ -69,52 +69,52 @@ func validate(config *Config) error {
 		}
 	}
 
-	err = validateRoute(config)
+	err = validateRouting(config)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func validateRoute(config *Config) error {
-	route := config.Route
-	if route == nil {
+func validateRouting(config *Config) error {
+	routing := config.Routing
+	if routing == nil {
 		return nil
 	}
 
-	switch route.Transport.TCP {
+	switch routing.Transport.TCP {
 	// no need to check TLSPort for the Trojan protocol because it defaults to 443
 	case ShadowsocksTransport, ShadowsocksTransportAlias:
 		for name, node := range config.Outbounds {
 			if node.TCPPort == 0 {
-				return errors.Newf("field Route: field Transport: field TCP is \"%v\", "+
-					"but outbound %v has no \"tcp-port\" defined", route.Transport.TCP, name)
+				return errors.Newf("field Routing: field Transport: field TCP is \"%v\", "+
+					"but outbound %v has no \"tcp-port\" defined", routing.Transport.TCP, name)
 			}
 		}
 	}
 
 	outboundNames := strings.Join(maps.Keys(config.Outbounds), " ")
 
-	for i, rule := range route.Rules {
+	for i, rule := range routing.Rules {
 		policy := rule.Policy
 		if policy == "direct" || policy == "reject" || policy == "final" {
 			continue
 		}
 		_, ok := config.Outbounds[policy]
 		if !ok {
-			return errors.Newf("field Route: field Rules: rule [%v]: "+
+			return errors.Newf("field Routing: field Rules: rule [%v]: "+
 				"field Policy %v must be \"direct\", \"reject\", \"final\" or an outbound proxy name (%v)",
 				i+1, policy, outboundNames)
 		}
 	}
 
-	final := route.Final
+	final := routing.Final
 	if final == "direct" || final == "reject" {
 		return nil
 	}
 	_, ok := config.Outbounds[final]
 	if !ok {
-		return errors.Newf("field Route: "+
+		return errors.Newf("field Routing: "+
 			"field Final %v must be \"direct\", \"reject\", or an outbound proxy name (%v)",
 			final, outboundNames)
 	}

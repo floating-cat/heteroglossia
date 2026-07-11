@@ -47,11 +47,11 @@ func main() {
 		}()
 	}
 
-	routeClient := router.NewClient(config.Route, config.Outbounds,
+	routerClient := router.NewClient(config.Routing, config.Outbounds,
 		ruleDBFilePath, config.Misc.RulesFileAutoUpdate, config.Misc.TLSKeyLog)
 	if config.Inbounds.Hg != nil {
 		go func() {
-			server := tr_carrier.NewServer(config.Inbounds.Hg, routeClient)
+			server := tr_carrier.NewServer(config.Inbounds.Hg, routerClient)
 			err := server.ListenAndServe(context.Background())
 			if err != nil {
 				log.Fatal("fail to start the hg server", err)
@@ -60,7 +60,7 @@ func main() {
 	}
 	if config.Inbounds.HTTPSOCKS != nil {
 		go func() {
-			server := http_socks.NewServer(config.Inbounds.HTTPSOCKS, routeClient)
+			server := http_socks.NewServer(config.Inbounds.HTTPSOCKS, routerClient)
 			err := server.ListenAndServe(context.Background())
 			if err != nil {
 				log.Fatal("fail to start the HTTP/SOCKS server", err)
@@ -70,7 +70,7 @@ func main() {
 
 	if config.Misc.HgBinaryAutoUpdate {
 		go updater.StartUpdateCron(func() {
-			success, latestVersion, err := updater.UpdateHgBinary(transport.HTTPClientThroughRouter(routeClient))
+			success, latestVersion, err := updater.UpdateHgBinary(transport.HTTPClientThroughRouter(routerClient))
 			if err != nil {
 				log.WarnWithError("fail to update the hg binary", err)
 			}

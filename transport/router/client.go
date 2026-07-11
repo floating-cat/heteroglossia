@@ -20,8 +20,8 @@ import (
 )
 
 type client struct {
-	route          *conf.Route
-	routeRWMutex   *sync.RWMutex
+	routing        *conf.Routing
+	routingRWMutex *sync.RWMutex
 	outbounds      map[string]*conf.ProxyNode
 	ruleDBFilePath string
 	tlsKeyLog      bool
@@ -31,13 +31,13 @@ type client struct {
 
 var _ transport.Client = (*client)(nil)
 
-func NewClient(route *conf.Route, outbounds map[string]*conf.ProxyNode,
+func NewClient(routing *conf.Routing, outbounds map[string]*conf.ProxyNode,
 	ruleDBFilePath string, autoUpdateRuleFiles bool, tlsKeyLog bool) transport.Client {
-	router := &client{route, new(sync.RWMutex), outbounds, ruleDBFilePath, tlsKeyLog, nil}
+	router := &client{routing, new(sync.RWMutex), outbounds, ruleDBFilePath, tlsKeyLog, nil}
 	router.httpClient = transport.HTTPClientThroughRouter(router)
 	if autoUpdateRuleFiles {
 		go updater.StartUpdateCron(func() {
-			router.updateRoute()
+			router.updateRouting()
 		})
 	}
 	return router
@@ -45,19 +45,19 @@ func NewClient(route *conf.Route, outbounds map[string]*conf.ProxyNode,
 
 func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (net.Conn, error) {
 	var policy string
-	if c.route != nil {
-		c.routeRWMutex.RLock()
+	if c.routing != nil {
+		c.routingRWMutex.RLock()
 	matchAgain:
 		switch addr.AddrType {
 		case transport.IPv4, transport.IPv6:
-			for _, rule := range c.route.Rules {
+			for _, rule := range c.routing.Rules {
 				if rule.Matcher.MatchIP(addr.IP) {
 					policy = rule.Policy
 					break
 				}
 			}
 		default:
-			for _, rule := range c.route.Rules {
+			for _, rule := range c.routing.Rules {
 				if rule.Matcher.MatchDomain(addr.Domain) {
 					policy = rule.Policy
 					break matchAgain
@@ -70,13 +70,13 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 				goto matchAgain
 			}
 		}
-		c.routeRWMutex.RUnlock()
+		c.routingRWMutex.RUnlock()
 
 		if policy == "final" || policy == "" {
-			policy = c.route.Final
+			policy = c.routing.Final
 		}
 	} else {
-		// default to direct if no route is configured
+		// default to direct if no routing is configured
 		policy = "direct"
 	}
 
@@ -89,12 +89,12 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 	default:
 		proxyNode := c.outbounds[policy]
 		var err error
-		nextClient, err = newCarrierClient(c.route.Transport.TCP, proxyNode, c.tlsKeyLog)
+		nextClient, err = newCarrierClient(c.routing.Transport.TCP, proxyNode, c.tlsKeyLog)
 		if err != nil {
 			return nil, err
 		}
 	}
-	log.Info("route", contextutil.SourceTag, ctx.Value(contextutil.SourceTag),
+	log.Info("routing", contextutil.SourceTag, ctx.Value(contextutil.SourceTag),
 		contextutil.InboundTag, ctx.Value(contextutil.InboundTag), "access", addr.ToHostStr(), "policy", policy)
 	return nextClient.DialTCP(ctx, addr)
 }
@@ -110,7 +110,7 @@ func newCarrierClient(t conf.TCPTransport, proxyNode *conf.ProxyNode, tlsKeyLog 
 	}
 }
 
-func (c *client) updateRoute() {
+func (c *client) updateRouting() {
 	success, err := updater.UpdateRuleDBFile(c.ruleDBFilePath, c.httpClient)
 	if err != nil {
 		log.WarnWithError("fail to update rules' files", err)
@@ -120,17 +120,17 @@ func (c *client) updateRoute() {
 		return
 	}
 
-	c.routeRWMutex.RLock()
-	newRules, err := c.route.Rules.CopyWithNewRulesData(c.ruleDBFilePath)
+	c.routingRWMutex.RLock()
+	newRules, err := c.routing.Rules.CopyWithNewRulesData(c.ruleDBFilePath)
 	if err != nil {
-		c.routeRWMutex.RUnlock()
+		c.routingRWMutex.RUnlock()
 		log.WarnWithError("fail to update rules' 'matcher'", err)
 		return
 	}
-	c.routeRWMutex.RUnlock()
+	c.routingRWMutex.RUnlock()
 
-	c.routeRWMutex.Lock()
-	c.route.Rules = newRules
-	c.routeRWMutex.Unlock()
+	c.routingRWMutex.Lock()
+	c.routing.Rules = newRules
+	c.routingRWMutex.Unlock()
 	log.Info("update rules' files successfully")
 }
