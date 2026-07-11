@@ -24,6 +24,10 @@
     }
   },
   "route": {
+    "transport": {
+      "tcp": "ss",
+      "udp": "sq"
+    },
     "final": "node1",
     "rules": [
       {

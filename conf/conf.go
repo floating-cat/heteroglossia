@@ -97,9 +97,25 @@ func (node *ProxyNode) UnmarshalJSON(data []byte) error {
 }
 
 type Route struct {
-	Rules Rules  `json:"rules" valid:"dive"`
-	Final string `json:"final"`
+	Transport Transport `json:"transport" valid:"dive"`
+	Rules     Rules     `json:"rules" valid:"dive"`
+	Final     string    `json:"final"`
 }
+
+type Transport struct {
+	TCP TCPTransport `json:"tcp" valid:"req|in:trojan,tr,shadowsocks,ss"`
+	// UDP is not used yet; it will be supported later.
+	UDP string `json:"udp"`
+}
+
+type TCPTransport string
+
+const (
+	TrojanTransport           TCPTransport = "trojan"
+	TrojanTransportAlias      TCPTransport = "tr"
+	ShadowsocksTransport      TCPTransport = "shadowsocks"
+	ShadowsocksTransportAlias TCPTransport = "ss"
+)
 
 type Rules []Rule
 

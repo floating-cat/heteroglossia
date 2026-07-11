@@ -11,8 +11,10 @@ import (
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/transport/direct"
 	"github.com/floating-cat/heteroglossia/transport/reject"
+	"github.com/floating-cat/heteroglossia/transport/ss_carrier"
 	"github.com/floating-cat/heteroglossia/transport/tr_carrier"
 	"github.com/floating-cat/heteroglossia/util/contextutil"
+	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/log"
 	"github.com/floating-cat/heteroglossia/util/updater"
 )
@@ -87,7 +89,7 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 	default:
 		proxyNode := c.outbounds[policy]
 		var err error
-		nextClient, err = tr_carrier.NewClient(proxyNode, c.tlsKeyLog)
+		nextClient, err = newCarrierClient(c.route.Transport.TCP, proxyNode, c.tlsKeyLog)
 		if err != nil {
 			return nil, err
 		}
@@ -95,6 +97,17 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 	log.Info("route", contextutil.SourceTag, ctx.Value(contextutil.SourceTag),
 		contextutil.InboundTag, ctx.Value(contextutil.InboundTag), "access", addr.ToHostStr(), "policy", policy)
 	return nextClient.DialTCP(ctx, addr)
+}
+
+func newCarrierClient(t conf.TCPTransport, proxyNode *conf.ProxyNode, tlsKeyLog bool) (transport.Client, error) {
+	switch t {
+	case conf.TrojanTransport, conf.TrojanTransportAlias:
+		return tr_carrier.NewClient(proxyNode, tlsKeyLog)
+	case conf.ShadowsocksTransport, conf.ShadowsocksTransportAlias:
+		return ss_carrier.NewClient(proxyNode), nil
+	default:
+		return nil, errors.Newf("unsupported transport type: %v", t)
+	}
 }
 
 func (c *client) updateRoute() {
