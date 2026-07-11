@@ -6,18 +6,16 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-func TestReplaceCRLF(t *testing.T) {
+func TestEscapeLineBreaks(t *testing.T) {
 	tests := []struct {
 		arr      [16]byte
 		expected [16]byte
 	}{
 		{[16]byte{1, 2, 3, 4}, [16]byte{1, 2, 3, 4}},
-		{[16]byte{cr, lf, 3, 4}, [16]byte{cr, escapedLF, 3, 4}},
-		{[16]byte{cr, lf, lf, 4}, [16]byte{cr, escapedLF, lf, 4}},
-		{[16]byte{cr, lf, cr, 4}, [16]byte{cr, escapedLF, cr, 4}},
-		{[16]byte{cr, lf, cr, lf}, [16]byte{cr, escapedLF, cr, escapedLF}},
+		{[16]byte{cr, 2, 3, 4}, [16]byte{escapedCR, 2, 3, 4}},
+		{[16]byte{cr, 2, cr, 4}, [16]byte{escapedCR, 2, escapedCR, 4}},
 	}
 	for _, tt := range tests {
-		must.Eq(t, tt.expected, replaceCRLF(tt.arr), must.Sprintf("no match: %v", tt))
+		must.Eq(t, tt.expected, escapeLineBreaks(tt.arr), must.Sprintf("no match: %v", tt))
 	}
 }

@@ -13,9 +13,9 @@ import (
 )
 
 type client struct {
-	proxyNode           *conf.ProxyNode
-	tlsConfig           *tls.Config
-	passwordWithoutCRLF [16]byte
+	proxyNode                     *conf.ProxyNode
+	tlsConfig                     *tls.Config
+	passwordWithLineBreaksEscaped [16]byte
 }
 
 var _ transport.Client = (*client)(nil)
@@ -27,7 +27,7 @@ func NewClient(proxyNode *conf.ProxyNode, tlsKeyLog bool) (transport.Client, err
 		return nil, err
 	}
 	clientHandler.tlsConfig = tlsConfig
-	clientHandler.passwordWithoutCRLF = replaceCRLF(proxyNode.Password.Raw)
+	clientHandler.passwordWithLineBreaksEscaped = escapeLineBreaks(proxyNode.Password.Raw)
 	return clientHandler, nil
 }
 
@@ -37,5 +37,5 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 	if err != nil {
 		return nil, errors.Newf("fail to connect to the TLS server %v: %.0w", targetHostWithPort, err)
 	}
-	return newClientConn(tlsConn, addr, c.passwordWithoutCRLF), nil
+	return newClientConn(tlsConn, addr, c.passwordWithLineBreaksEscaped), nil
 }

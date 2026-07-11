@@ -10,22 +10,18 @@ import (
 
 const (
 	cr        = '\r'
-	lf        = '\n'
-	escapedLF = lf + 1
+	escapedCR = cr + 1
 )
 
-func replaceCRLF(passwordRaw [16]byte) [16]byte {
+// escape CR because the Trojan protocol uses CR or CRLF
+// to distinguish HTTP requests from proxy requests.
+func escapeLineBreaks(passwordRaw [16]byte) [16]byte {
 	var newPw [16]byte
 
-	isCR := false
 	for i, b := range passwordRaw {
 		switch {
 		case b == cr:
-			isCR = true
-			newPw[i] = b
-		case isCR && b == lf:
-			newPw[i] = escapedLF
-			isCR = false
+			newPw[i] = escapedCR
 		default:
 			newPw[i] = b
 		}

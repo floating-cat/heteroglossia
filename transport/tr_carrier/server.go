@@ -24,8 +24,8 @@ type server struct {
 	hg           *conf.Hg
 	targetClient transport.Client
 
-	passwordWithCRLF [16]byte
-	trojanPassword   [56]byte
+	passwordWithLineBreaksEscaped [16]byte
+	trojanPassword                [56]byte
 
 	tlsConfig                    *tls.Config
 	tlsBadAuthFallbackServerPort uint16
@@ -35,7 +35,7 @@ var _ transport.Server = (*server)(nil)
 
 func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
 	server := &server{hg: hg, targetClient: targetClient}
-	server.passwordWithCRLF = replaceCRLF(hg.Password.Raw)
+	server.passwordWithLineBreaksEscaped = escapeLineBreaks(hg.Password.Raw)
 	server.trojanPassword = toTrojanPassword(hg.Password.String)
 	return server
 }
@@ -89,14 +89,16 @@ func (s *server) Serve(ctx context.Context, conn net.Conn) error {
 	}
 
 	isTrojan := false
-	if len(lineBs) != 16 || [16]byte(lineBs[0:16]) != s.passwordWithCRLF {
+	if len(lineBs) != 16 || [16]byte(lineBs[0:16]) != s.passwordWithLineBreaksEscaped {
 		if len(lineBs) != 56 || [56]byte(lineBs[0:56]) != s.trojanPassword {
 			unreadBufSize := bufReader.Buffered()
 			unreadBs, err := bufReader.Peek(unreadBufSize)
 			if err != nil {
 				return errors.WithStack(err)
 			}
-			// assume CRLF line endings (len=2). This also works if the original request uses only LF
+			// assume CRLF line endings (length = 2). This also works if the original
+			// request uses only LF and won't cause any security issues because we only
+			// forward the request to our internal web server
 			unrelatedBs := pool.Get(len(lineBs) + 2 + len(unreadBs))[:0]
 			defer pool.Put(unrelatedBs)
 			unrelatedBs = append(unrelatedBs, lineBs...)
