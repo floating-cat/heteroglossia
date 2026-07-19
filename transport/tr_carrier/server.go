@@ -20,12 +20,11 @@ import (
 )
 
 type server struct {
-	host                              string
-	port                              uint16
-	tlsCertKeyPair                    *conf.TLSCertKeyPair
-	tlsBadAuthFallbackSiteDir         string
-	passwordHashWithLineBreaksEscaped [16]byte
-	trojanPasswordHash                [56]byte
+	host                      string
+	port                      uint16
+	passwordHash              [56]byte
+	tlsCertKeyPair            *conf.TLSCertKeyPair
+	tlsBadAuthFallbackSiteDir string
 
 	tlsConfig                    *tls.Config
 	tlsBadAuthFallbackServerPort uint16
@@ -35,12 +34,10 @@ type server struct {
 var _ transport.Server = (*server)(nil)
 
 func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
-	server := &server{host: hg.Host, port: hg.TLSPort,
+	return &server{host: hg.Host, port: hg.TLSPort,
 		tlsCertKeyPair: hg.TLSCertKeyPair, tlsBadAuthFallbackSiteDir: hg.TLSBadAuthFallbackSiteDir,
+		passwordHash: toTrojanPasswordHash(hg.Password.String),
 		targetClient: targetClient}
-	server.passwordHashWithLineBreaksEscaped = escapeLineBreaks(hg.Password.Raw)
-	server.trojanPasswordHash = toTrojanPasswordHash(hg.Password.String)
-	return server
 }
 
 func (s *server) ListenAndServe(ctx context.Context) error {
@@ -83,36 +80,28 @@ func (s *server) Serve(ctx context.Context, conn net.Conn) error {
 	textProtoReader := textproto.NewReader(bufReader)
 
 	// read one line to make our server like a normal HTTP server
-	// for a TLS carrier client, it uses a password without CRLF
-	// for a Trojan client, it uses a hex string password which doesn't include CRLF bytes
-	// so we can always load a line with a password in both cases
 	lineBs, err := textProtoReader.ReadLineBytes()
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
-	isTrojan := false
-	if len(lineBs) != 16 || [16]byte(lineBs[0:16]) != s.passwordHashWithLineBreaksEscaped {
-		if len(lineBs) != 56 || [56]byte(lineBs[0:56]) != s.trojanPasswordHash {
-			unreadBufSize := bufReader.Buffered()
-			unreadBs, err := bufReader.Peek(unreadBufSize)
-			if err != nil {
-				return errors.WithStack(err)
-			}
-			// assume CRLF line endings (length = 2). This also works if the original
-			// request uses only LF and won't cause any security issues because we only
-			// forward the request to our internal web server
-			unrelatedBs := pool.Get(len(lineBs) + 2 + len(unreadBs))[:0]
-			defer pool.Put(unrelatedBs)
-			unrelatedBs = append(unrelatedBs, lineBs...)
-			unrelatedBs = append(unrelatedBs, crlf...)
-			unrelatedBs = append(unrelatedBs, unreadBs...)
-			fallbackAddr := transport.NewSocketAddressByIP(new(netip.IPv6Loopback()), s.tlsBadAuthFallbackServerPort)
-			ctx := contextutil.WithValues(ctx, contextutil.InboundTag, "Trojan carrier with wrong auth")
-			return transport.ForwardTCP(ctx, fallbackAddr, ioutil.NewBytesReadPreloadConn(unrelatedBs, conn), s.targetClient)
+	if len(lineBs) != 56 || [56]byte(lineBs[0:56]) != s.passwordHash {
+		unreadBufSize := bufReader.Buffered()
+		unreadBs, err := bufReader.Peek(unreadBufSize)
+		if err != nil {
+			return errors.WithStack(err)
 		}
-
-		isTrojan = true
+		// assume CRLF line endings (length = 2). This also works if the original
+		// request uses only LF and won't cause any security issues because we only
+		// forward the request to our internal web server
+		unrelatedBs := pool.Get(len(lineBs) + 2 + len(unreadBs))[:0]
+		defer pool.Put(unrelatedBs)
+		unrelatedBs = append(unrelatedBs, lineBs...)
+		unrelatedBs = append(unrelatedBs, crlf...)
+		unrelatedBs = append(unrelatedBs, unreadBs...)
+		fallbackAddr := transport.NewSocketAddressByIP(new(netip.IPv6Loopback()), s.tlsBadAuthFallbackServerPort)
+		ctx := contextutil.WithValues(ctx, contextutil.InboundTag, "Trojan carrier with wrong auth")
+		return transport.ForwardTCP(ctx, fallbackAddr, ioutil.NewBytesReadPreloadConn(unrelatedBs, conn), s.targetClient)
 	}
 
 	commandType, err := ioutil.Read1(bufReader)
@@ -126,12 +115,10 @@ func (s *server) Serve(ctx context.Context, conn net.Conn) error {
 	if err != nil {
 		return err
 	}
-	if isTrojan {
-		crlfBs := make([]byte, 2)
-		_, err := ioutil.ReadFull(bufReader, crlfBs)
-		if err != nil {
-			return errors.WithStack(err)
-		}
+	crlfBs := make([]byte, 2)
+	_, err = ioutil.ReadFull(bufReader, crlfBs)
+	if err != nil {
+		return errors.WithStack(err)
 	}
 
 	unreadSize := bufReader.Buffered()

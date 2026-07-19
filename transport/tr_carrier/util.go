@@ -8,28 +8,7 @@ import (
 	"github.com/floating-cat/heteroglossia/util/log"
 )
 
-const (
-	cr        = '\r'
-	escapedCR = cr + 1
-)
-
 var crlf = []byte{'\r', '\n'}
-
-// escape CR because the Trojan protocol uses CR or CRLF
-// to distinguish HTTP requests from proxy requests.
-func escapeLineBreaks(passwordRaw [16]byte) [16]byte {
-	var newPw [16]byte
-
-	for i, b := range passwordRaw {
-		switch {
-		case b == cr:
-			newPw[i] = escapedCR
-		default:
-			newPw[i] = b
-		}
-	}
-	return newPw
-}
 
 func toTrojanPasswordHash(password string) [56]byte {
 	var key [56]byte

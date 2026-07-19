@@ -8,8 +8,7 @@ It doesn't support SOCKS4 and UDP for SOCKS inbound.
 
 ### TR carrier
 
-It doesn't support UDP. Also, the TLS carrier client isn't compatible with the Trojan server, although the TLS carrier
-server is compatible with the Trojan client.
+It doesn't support UDP.
 
 ### SS carrier
 

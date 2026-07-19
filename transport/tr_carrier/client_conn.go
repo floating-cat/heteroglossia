@@ -15,7 +15,7 @@ import (
 type clientConn struct {
 	net.Conn
 	accessAddr           *transport.SocketAddress
-	passwordHash         [16]byte
+	passwordHash         [56]byte
 	hasWriteFirstPayload bool
 }
 
@@ -23,7 +23,7 @@ var _ net.Conn = (*clientConn)(nil)
 var _ io.ReaderFrom = (*clientConn)(nil)
 var _ io.WriterTo = (*clientConn)(nil)
 
-func newClientConn(conn net.Conn, accessAddr *transport.SocketAddress, passwordHash [16]byte) *clientConn {
+func newClientConn(conn net.Conn, accessAddr *transport.SocketAddress, passwordHash [56]byte) *clientConn {
 	return &clientConn{conn, accessAddr, passwordHash, false}
 }
 
@@ -45,9 +45,7 @@ https://trojan-gfw.github.io/trojan/protocol
 */
 
 func (c *clientConn) writeClientFirstPayload(payload []byte) (int, error) {
-	// 16 + 2 = len(password) + len(CRLF)
-	// we don't write the second CRLF like Trojan protocol
-	headerSize := 16 + 2 + socksLikeRequestSizeInBytes(c.accessAddr)
+	headerSize := 56 + 2 + socksLikeRequestSizeInBytes(c.accessAddr) + 2
 	firstPayloadBs := pool.Get(headerSize + len(payload))
 	defer pool.Put(firstPayloadBs)
 
@@ -55,6 +53,7 @@ func (c *clientConn) writeClientFirstPayload(payload []byte) (int, error) {
 	buf.Write(c.passwordHash[:])
 	buf.Write(crlf)
 	writeSOCKSLikeConnectionCommandRequest(buf, c.accessAddr)
+	buf.Write(crlf)
 	buf.Write(payload)
 
 	count, err := buf.WriteTo(c.Conn)
