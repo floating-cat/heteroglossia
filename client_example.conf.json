@@ -25,8 +25,8 @@
   },
   "routing": {
     "transport": {
-      "tcp": "tr",
-      "udp": "sq"
+      "tcp": "trojan",
+      "udp": "sunnyquic"
     },
     "final": "node1",
     "rules": [

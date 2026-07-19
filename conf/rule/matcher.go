@@ -27,6 +27,11 @@ const (
 	ipSetTagPrefix     = "ip-set-tag/"
 )
 
+var allRulePrefixes = []string{
+	domainFullPrefix, domainSuffixPrefix, domainRegexPrefix,
+	ipPrefix, cidrPrefix, domainTagPrefix, ipSetTagPrefix,
+}
+
 func newMatcher(matchRules []string) *Matcher {
 	return &Matcher{domainFullAndSuffixMatcher: newDomainFullAndSuffixMatcher(), bakedMatchRules: matchRules}
 }
@@ -112,10 +117,11 @@ func (matcher *Matcher) SetupRulesData(rulesQueryStore *DomainIPSetRulesQuerySto
 				return nil
 			})
 		default:
-			return errors.Newf("fail to parse match [%v] \"%v\"", i+1, rule)
+			return errors.Newf("'match.[%v]' %q has an unknown prefix; valid prefixes are: %v",
+				i+1, rule, strings.Join(allRulePrefixes, ", "))
 		}
 		if err != nil {
-			return errors.Newf("fail to parse match [%v] \"%v\": %.0w", i+1, rule, err)
+			return errors.Newf("fail to parse 'match.[%v]' %q: %v", i+1, rule, err.Error())
 		}
 	}
 

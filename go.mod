@@ -6,10 +6,10 @@ require (
 	github.com/gaissmai/bart v0.28.1
 	github.com/libp2p/go-buffer-pool v0.1.0
 	github.com/mdobak/go-xerrors v1.0.0
+	github.com/nobl9/govy v0.26.0
 	github.com/quic-go/quic-go v0.60.0
 	github.com/shoenig/test v1.13.2
 	github.com/tebeka/atexit v0.3.0
-	github.com/twharmon/govalid v1.6.2
 	golang.org/x/crypto v0.54.0
 	golang.org/x/exp v0.0.0-20260718201538-764159d718ef
 	golang.org/x/mod v0.38.0
@@ -26,8 +26,10 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	golang.org/x/net v0.57.0 // indirect
+	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/tools v0.48.0 // indirect
 	modernc.org/libc v1.74.2 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect

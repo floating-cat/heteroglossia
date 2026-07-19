@@ -10,22 +10,22 @@ import (
 )
 
 type Config struct {
-	Inbounds  Inbounds              `json:"inbounds" valid:"dive"`
+	Inbounds  Inbounds              `json:"inbounds"`
 	Outbounds map[string]*ProxyNode `json:"outbounds"`
-	Routing   *Routing              `json:"routing" valid:"dive"`
-	Misc      Misc                  `json:"misc" valid:"dive"`
+	Routing   *Routing              `json:"routing"`
+	Misc      Misc                  `json:"misc"`
 }
 
 type Inbounds struct {
-	HTTPSOCKS *HTTPSOCKS `json:"http-socks" valid:"dive"`
-	Hg        *Hg        `json:"hg" valid:"dive"`
+	HTTPSOCKS *HTTPSOCKS `json:"http-socks"`
+	Hg        *Hg        `json:"hg"`
 }
 
 type HTTPSOCKS struct {
-	Host        string `json:"host" valid:"req|host"`
-	Port        uint16 `json:"port" valid:"min:1|max:65535"`
+	Host        string `json:"host"`
+	Port        uint16 `json:"port"`
 	Username    string `json:"username"`
-	Password    string `json:"password,secure"`
+	Password    string `json:"password"`
 	SystemProxy bool   `json:"system-proxy"`
 }
 
@@ -41,13 +41,13 @@ func (httpSOCKS *HTTPSOCKS) ToHTTPSOCKSAuthInfo() *HTTPSOCKSAuthInfo {
 }
 
 type Hg struct {
-	Host                      string          `json:"host" valid:"req|host"`
-	Password                  HexPassword     `json:"password,secure" valid:"dive"`
-	TCPPort                   *uint16         `json:"tcp-port" valid:"min:1|max:65535"`
-	TLSPort                   uint16          `json:"tls-port" valid:"min:1|max:65535"`
+	Host                      string          `json:"host"`
+	Password                  HexPassword     `json:"password"`
+	TCPPort                   *uint16         `json:"tcp-port"`
+	TLSPort                   uint16          `json:"tls-port"`
 	TLSCertKeyPair            *TLSCertKeyPair `json:"tls-cert-key-pair"`
 	TLSBadAuthFallbackSiteDir string          `json:"tls-bad-auth-fallback-site-dir"`
-	QUICPort                  uint16          `json:"quic-port" valid:"min:1|max:65535"`
+	QUICPort                  uint16          `json:"quic-port"`
 }
 
 func (hg *Hg) UnmarshalJSON(data []byte) error {
@@ -59,17 +59,17 @@ func (hg *Hg) UnmarshalJSON(data []byte) error {
 }
 
 type ProxyNode struct {
-	Host              string      `json:"host" valid:"req|host"`
-	Password          HexPassword `json:"password,secure" valid:"dive"`
-	TCPPort           *uint16     `json:"tcp-port" valid:"min:1|max:65535"`
-	TLSPort           uint16      `json:"tls-port" valid:"min:1|max:65535"`
+	Host              string      `json:"host"`
+	Password          HexPassword `json:"password"`
+	TCPPort           *uint16     `json:"tcp-port"`
+	TLSPort           uint16      `json:"tls-port"`
 	TLSCustomCertFile string      `json:"tls-cert"`
-	QUICPort          uint16      `json:"quic-port" valid:"min:1|max:65535"`
+	QUICPort          uint16      `json:"quic-port"`
 }
 
 type HexPassword struct {
 	Raw    [16]byte
-	String string `valid:"req"`
+	String string
 }
 
 func (pw *HexPassword) UnmarshalJSON(data []byte) error {
@@ -97,13 +97,13 @@ func (node *ProxyNode) UnmarshalJSON(data []byte) error {
 }
 
 type Routing struct {
-	Transport Transport `json:"transport" valid:"dive"`
-	Rules     Rules     `json:"rules" valid:"dive"`
+	Transport Transport `json:"transport"`
+	Rules     Rules     `json:"rules"`
 	Final     string    `json:"final"`
 }
 
 type Transport struct {
-	TCP TCPTransport `json:"tcp" valid:"req|in:shadowsocks,ss,trojan,tr,sunnyquic,sq"`
+	TCP TCPTransport `json:"tcp"`
 	// UDP is not used yet; it will be supported later.
 	UDP string `json:"udp"`
 }
@@ -113,8 +113,8 @@ type TCPTransport string
 type Rules []Rule
 
 type Rule struct {
-	Matcher *libRule.Matcher `json:"match" valid:"req"`
-	Policy  string           `json:"policy" valid:"req"`
+	Matcher *libRule.Matcher `json:"match"`
+	Policy  string           `json:"policy"`
 }
 
 type Misc struct {
@@ -123,7 +123,7 @@ type Misc struct {
 	TLSKeyLog           bool   `json:"tls-key-log"`
 	VerboseLog          bool   `json:"verbose-log"`
 	Profiling           bool   `json:"profiling"`
-	ProfilingPort       uint16 `json:"profiling-port" valid:"min:1|max:65535"`
+	ProfilingPort       uint16 `json:"profiling-port"`
 }
 
 func (misc *Misc) UnmarshalJSON(data []byte) error {
@@ -165,7 +165,7 @@ func (rules Rules) setupRulesData(ruleDBFilePath string) error {
 	for i, rule := range rules {
 		err := rule.Matcher.SetupRulesData(store)
 		if err != nil {
-			return errors.Newf("rule [%v]: %.0w", i+1, err)
+			return errors.Newf("'rules.[%v]': %v", i+1, err.Error())
 		}
 	}
 	return nil

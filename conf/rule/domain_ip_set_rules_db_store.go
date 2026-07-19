@@ -83,7 +83,7 @@ func (store *DomainIPSetRulesQueryStore) queryDomainRulesByTag(tag string, consu
 	}
 
 	if !atLeastOneRow {
-		return errors.Newf("no related domain found when querying database")
+		return errors.Newf("no related domain tag found when querying database")
 	}
 	err = rows.Err()
 	if err != nil {

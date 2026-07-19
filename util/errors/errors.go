@@ -19,7 +19,7 @@ var New = xerrors.New
 
 // Newf examples:
 // Newf("access denied: %v", "404")
-// Newf("access denied: %v: %.0w", "404", ErrReadError)
+// Newf("access denied: %v: %w", "404", ErrReadError)
 var Newf = xerrors.Newf
 
 var WithStack = xerrors.New
