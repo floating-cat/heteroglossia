@@ -16,33 +16,36 @@ import (
 	"github.com/floating-cat/heteroglossia/util/ioutil"
 	"github.com/floating-cat/heteroglossia/util/log"
 	"github.com/floating-cat/heteroglossia/util/netutil"
-	"github.com/floating-cat/heteroglossia/util/strutil"
 	pool "github.com/libp2p/go-buffer-pool"
 )
 
 type server struct {
-	hg           *conf.Hg
-	targetClient transport.Client
-
-	passwordWithLineBreaksEscaped [16]byte
-	trojanPassword                [56]byte
+	host                              string
+	port                              uint16
+	tlsCertKeyPair                    *conf.TLSCertKeyPair
+	tlsBadAuthFallbackSiteDir         string
+	passwordHashWithLineBreaksEscaped [16]byte
+	trojanPasswordHash                [56]byte
 
 	tlsConfig                    *tls.Config
 	tlsBadAuthFallbackServerPort uint16
+	targetClient                 transport.Client
 }
 
 var _ transport.Server = (*server)(nil)
 
 func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
-	server := &server{hg: hg, targetClient: targetClient}
-	server.passwordWithLineBreaksEscaped = escapeLineBreaks(hg.Password.Raw)
-	server.trojanPassword = toTrojanPassword(hg.Password.String)
+	server := &server{host: hg.Host, port: hg.TLSPort,
+		tlsCertKeyPair: hg.TLSCertKeyPair, tlsBadAuthFallbackSiteDir: hg.TLSBadAuthFallbackSiteDir,
+		targetClient: targetClient}
+	server.passwordHashWithLineBreaksEscaped = escapeLineBreaks(hg.Password.Raw)
+	server.trojanPasswordHash = toTrojanPasswordHash(hg.Password.String)
 	return server
 }
 
 func (s *server) ListenAndServe(ctx context.Context) error {
 	var err error
-	s.tlsConfig, err = netutil.TLSServerConfig(s.hg)
+	s.tlsConfig, err = netutil.TLSServerConfig(s.host, s.tlsCertKeyPair, false)
 	if err != nil {
 		return err
 	}
@@ -50,8 +53,8 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 	port := make(chan uint16, 1)
 	go func() {
 		var httpHandler http.Handler
-		if s.hg.TLSBadAuthFallbackSiteDir != "" {
-			httpHandler = http.FileServer(http.Dir(s.hg.TLSBadAuthFallbackSiteDir))
+		if s.tlsBadAuthFallbackSiteDir != "" {
+			httpHandler = http.FileServer(http.Dir(s.tlsBadAuthFallbackSiteDir))
 		}
 		err := netutil.ListenHTTPAndServeWithListenerCallback(ctx, ":0", httpHandler, func(ln net.Listener) {
 			port <- uint16(ln.Addr().(*net.TCPAddr).Port)
@@ -62,13 +65,13 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 	}()
 	s.tlsBadAuthFallbackServerPort = <-port
 
-	addr := ":" + strutil.ToA(s.hg.TLSPort)
-	return netutil.ListenTLSAndAccept(ctx, addr, s.tlsConfig, func(conn net.Conn) {
-		connCtx := contextutil.WithSourceAndInboundValues(ctx, conn.RemoteAddr().String(), "TLS carrier")
+	hostWithPort := netutil.JoinHostPort(s.host, s.port)
+	return netutil.ListenTLSAndAccept(ctx, hostWithPort, s.tlsConfig, func(conn net.Conn) {
+		connCtx := contextutil.WithSourceAndInboundValues(ctx, conn.RemoteAddr().String(), "Trojan carrier")
 		err := s.Serve(connCtx, conn)
 		_ = conn.Close()
 		if err != nil {
-			log.InfoWithError("fail to handle a request over TLS", err)
+			log.InfoWithError("fail to handle a connection", err)
 		}
 	})
 }
@@ -89,8 +92,8 @@ func (s *server) Serve(ctx context.Context, conn net.Conn) error {
 	}
 
 	isTrojan := false
-	if len(lineBs) != 16 || [16]byte(lineBs[0:16]) != s.passwordWithLineBreaksEscaped {
-		if len(lineBs) != 56 || [56]byte(lineBs[0:56]) != s.trojanPassword {
+	if len(lineBs) != 16 || [16]byte(lineBs[0:16]) != s.passwordHashWithLineBreaksEscaped {
+		if len(lineBs) != 56 || [56]byte(lineBs[0:56]) != s.trojanPasswordHash {
 			unreadBufSize := bufReader.Buffered()
 			unreadBs, err := bufReader.Peek(unreadBufSize)
 			if err != nil {
@@ -105,7 +108,7 @@ func (s *server) Serve(ctx context.Context, conn net.Conn) error {
 			unrelatedBs = append(unrelatedBs, crlf...)
 			unrelatedBs = append(unrelatedBs, unreadBs...)
 			fallbackAddr := transport.NewSocketAddressByIP(new(netip.IPv6Loopback()), s.tlsBadAuthFallbackServerPort)
-			ctx := contextutil.WithValues(ctx, contextutil.InboundTag, "TLS carrier with wrong auth")
+			ctx := contextutil.WithValues(ctx, contextutil.InboundTag, "Trojan carrier with wrong auth")
 			return transport.ForwardTCP(ctx, fallbackAddr, ioutil.NewBytesReadPreloadConn(unrelatedBs, conn), s.targetClient)
 		}
 

@@ -9,34 +9,32 @@ import (
 	"github.com/floating-cat/heteroglossia/util/contextutil"
 	"github.com/floating-cat/heteroglossia/util/log"
 	"github.com/floating-cat/heteroglossia/util/netutil"
-	"github.com/floating-cat/heteroglossia/util/strutil"
 )
 
 type server struct {
-	hg           *conf.Hg
-	targetClient transport.Client
-
+	hostWithPort string
 	preSharedKey []byte
 	aeadOverhead int
 	// we can use '[16]byte' here actually, but we still use string here
 	// because we may support "2022-blake3-aes-256-gcm" later which uses '[32]byte'
-	saltPool *saltPool[string]
+	saltPool     *saltPool[string]
+	targetClient transport.Client
 }
 
 var _ transport.Server = (*server)(nil)
 
 func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
-	return &server{hg, targetClient, hg.Password.Raw[:], gcmTagOverhead, newSaltPool[string]()}
+	hostWithPort := netutil.JoinHostPort(hg.Host, *hg.TCPPort)
+	return &server{hostWithPort, hg.Password.Raw[:], gcmTagOverhead, newSaltPool[string](), targetClient}
 }
 
 func (s *server) ListenAndServe(ctx context.Context) error {
-	addr := ":" + strutil.ToA(s.hg.TCPPort)
-	return netutil.ListenTCPAndServe(ctx, addr, func(conn *net.TCPConn) {
-		connCtx := contextutil.WithSourceAndInboundValues(ctx, conn.RemoteAddr().String(), "TCP carrier")
+	return netutil.ListenTCPAndServe(ctx, s.hostWithPort, func(conn *net.TCPConn) {
+		connCtx := contextutil.WithSourceAndInboundValues(ctx, conn.RemoteAddr().String(), "Shadowsocks carrier")
 		err := s.Serve(connCtx, conn)
 		_ = conn.Close()
 		if err != nil {
-			log.InfoWithError("fail to handle a request over SS", err)
+			log.InfoWithError("fail to handle a connection", err)
 		}
 	})
 }

@@ -43,7 +43,7 @@ func (httpSOCKS *HTTPSOCKS) ToHTTPSOCKSAuthInfo() *HTTPSOCKSAuthInfo {
 type Hg struct {
 	Host                      string          `json:"host" valid:"req|host"`
 	Password                  HexPassword     `json:"password,secure" valid:"dive"`
-	TCPPort                   uint16          `json:"tcp-port" valid:"min:1|max:65535"`
+	TCPPort                   *uint16         `json:"tcp-port" valid:"min:1|max:65535"`
 	TLSPort                   uint16          `json:"tls-port" valid:"min:1|max:65535"`
 	TLSCertKeyPair            *TLSCertKeyPair `json:"tls-cert-key-pair"`
 	TLSBadAuthFallbackSiteDir string          `json:"tls-bad-auth-fallback-site-dir"`
@@ -61,7 +61,7 @@ func (hg *Hg) UnmarshalJSON(data []byte) error {
 type ProxyNode struct {
 	Host              string      `json:"host" valid:"req|host"`
 	Password          HexPassword `json:"password,secure" valid:"dive"`
-	TCPPort           uint16      `json:"tcp-port" valid:"min:1|max:65535"`
+	TCPPort           *uint16     `json:"tcp-port" valid:"min:1|max:65535"`
 	TLSPort           uint16      `json:"tls-port" valid:"min:1|max:65535"`
 	TLSCustomCertFile string      `json:"tls-cert"`
 	QUICPort          uint16      `json:"quic-port" valid:"min:1|max:65535"`
@@ -103,19 +103,12 @@ type Routing struct {
 }
 
 type Transport struct {
-	TCP TCPTransport `json:"tcp" valid:"req|in:trojan,tr,shadowsocks,ss"`
+	TCP TCPTransport `json:"tcp" valid:"req|in:shadowsocks,ss,trojan,tr,sunnyquic,sq"`
 	// UDP is not used yet; it will be supported later.
 	UDP string `json:"udp"`
 }
 
 type TCPTransport string
-
-const (
-	TrojanTransport           TCPTransport = "trojan"
-	TrojanTransportAlias      TCPTransport = "tr"
-	ShadowsocksTransport      TCPTransport = "shadowsocks"
-	ShadowsocksTransportAlias TCPTransport = "ss"
-)
 
 type Rules []Rule
 
@@ -200,4 +193,11 @@ const (
 	defaultTLSPort       = 443
 	defaultQUICPort      = 443
 	defaultProfilingPort = 6060
+
+	ShadowsocksTransport      TCPTransport = "shadowsocks"
+	ShadowsocksTransportAlias TCPTransport = "ss"
+	TrojanTransport           TCPTransport = "trojan"
+	TrojanTransportAlias      TCPTransport = "tr"
+	SunnyQUICTransport        TCPTransport = "sunnyquic"
+	SunnyQUICTransportAlias   TCPTransport = "sq"
 )

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/floating-cat/heteroglossia/util/errors"
+	"github.com/quic-go/quic-go"
 )
 
 var (
@@ -44,7 +45,7 @@ func listenTCPAndAccept(ctx context.Context, addr string,
 	}()
 
 	err = listenHandler(ln)
-	if errors.IsNetClosed(err) {
+	if errors.IsNetErrClosedOrContextCanceled(err) {
 		return nil
 	}
 	return err
@@ -60,7 +61,7 @@ func ListenTCPAndServeWithListenerCallback(ctx context.Context, addr string,
 		if listenSuccessCallback != nil {
 			listenSuccessCallback(ln)
 		}
-		return accept(ln, func(conn net.Conn) {
+		return acceptNetConn(ln, func(conn net.Conn) {
 			connHandler(conn.(*net.TCPConn))
 		})
 	}, listenFinishedCallback)
@@ -85,11 +86,55 @@ func ListenHTTPAndServeWithListenerCallback(ctx context.Context, addr string,
 	}, nil)
 }
 
-func ListenTLSAndAccept(ctx context.Context, addr string, tlsConfig *tls.Config, connHandler func(conn net.Conn)) error {
+func ListenTLSAndAccept(ctx context.Context, addr string, tlsConfig *tls.Config,
+	connHandler func(conn net.Conn)) error {
 	return listenTCPAndAccept(ctx, addr, func(ln net.Listener) error {
 		tlsLn := tls.NewListener(ln, tlsConfig)
-		return accept(tlsLn, connHandler)
+		return acceptNetConn(tlsLn, connHandler)
 	}, nil)
+}
+
+func ListenQUICAndServe(ctx context.Context, addr string, tlsConf *tls.Config,
+	connHandler func(quicConn *quic.Conn)) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	// https://quic-go.net/docs/quic/server/
+	// closing the listener associated with a Transport doesn’t
+	// close QUIC connections accepted from this listener
+	conn, err := listenConfig.ListenPacket(ctx, "udp", addr)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	// Transport.Close closes the underlying packet connection, so we don't close
+	// conn separately once the transport owns it.
+	tr := &quic.Transport{Conn: conn}
+	ln, err := tr.Listen(tlsConf, newQUICConfig())
+	if err != nil {
+		_ = tr.Close()
+		return errors.WithStack(err)
+	}
+	go func() {
+		<-ctx.Done()
+		_ = ln.Close()
+		_ = tr.Close()
+	}()
+	addServerListener(ln)
+	defer func() {
+		removeServerListener(ln)
+	}()
+
+	for {
+		conn, err := ln.Accept(ctx)
+		if err != nil {
+			if errors.IsNetErrClosedOrContextCanceled(err) {
+				return nil
+			}
+			return errors.WithStack(err)
+		}
+
+		go connHandler(conn)
+	}
 }
 
 func StopAllServerListeners() {
@@ -107,12 +152,13 @@ func removeServerListener(listenerCloser io.Closer) {
 	serverListener.Delete(listenerCloser)
 }
 
-func accept(ln net.Listener, connHandler func(conn net.Conn)) error {
+func acceptNetConn(ln net.Listener, connHandler func(conn net.Conn)) error {
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
 			return errors.WithStack(err)
 		}
+
 		go connHandler(conn)
 	}
 }

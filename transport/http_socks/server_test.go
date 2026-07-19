@@ -14,12 +14,11 @@ import (
 	"github.com/floating-cat/heteroglossia/transport/direct"
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/netutil"
-	"github.com/floating-cat/heteroglossia/util/strutil"
 	"github.com/shoenig/test/must"
 )
 
 const (
-	webServerAddr   = "http://127.0.0.1"
+	webServerHost   = "127.0.0.1"
 	proxyServerHost = "127.0.0.1"
 )
 
@@ -30,7 +29,7 @@ var (
 
 func TestProxyConnectionHandle(t *testing.T) {
 	webServerPort := startWebServer(t)
-	webServerAddrWithPort := webServerAddr + ":" + strutil.ToA(webServerPort)
+	webServerAddrWithPort := "http://" + netutil.JoinHostPort(webServerHost, webServerPort)
 	proxyProtocolInfo := []struct {
 		proxyProtocolName   string
 		proxyProtocolPrefix string
@@ -62,7 +61,7 @@ func startServerAndClient(proxyProtocolPrefix, webServerAddrWithPort string,
 		serverErr := startProxyServer(t, serverAuth, func(ln net.Listener) {
 			port := uint16(ln.Addr().(*net.TCPAddr).Port)
 			go func() {
-				proxyServerAddrWithPort := proxyProtocolPrefix + proxyServerHost + ":" + strutil.ToA(port)
+				proxyServerAddrWithPort := proxyProtocolPrefix + netutil.JoinHostPort(proxyServerHost, port)
 				clientErr <- startClient(proxyServerAddrWithPort, webServerAddrWithPort, clientAuth)
 			}()
 		})
@@ -85,7 +84,7 @@ func startProxyServer(t *testing.T, authInfo *conf.HTTPSOCKSAuthInfo, listenSucc
 				httpSOCKS = &conf.HTTPSOCKS{Username: authInfo.Username, Password: authInfo.Password}
 			}
 
-			err := (NewServer(httpSOCKS, direct.NewClient()).(*server)).Serve(ctx, tcpConn)
+			err := (NewServer(httpSOCKS, direct.Client).(*server)).Serve(ctx, tcpConn)
 			select {
 			case serverErr <- err:
 			case <-ctx.Done():

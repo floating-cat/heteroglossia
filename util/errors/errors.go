@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -35,8 +36,8 @@ func IsIoEof(err error) bool {
 	return errors.Is(err, io.EOF)
 }
 
-func IsNetClosed(err error) bool {
-	return errors.Is(err, net.ErrClosed)
+func IsNetErrClosedOrContextCanceled(err error) bool {
+	return errors.Is(err, net.ErrClosed) || errors.Is(err, context.Canceled)
 }
 
 func Print(w io.Writer, err error) {

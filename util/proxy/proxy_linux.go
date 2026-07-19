@@ -36,7 +36,7 @@ gsettings set org.gnome.system.proxy.socks port %[2]v`),
 		log.Info("standard error output (which might be expected) when running commands to set system proxy for Gnome", "stderr", stderr)
 	}
 
-	if strings.Contains(host, ":") {
+	if strings.Contains(host, ":") { // IPv6 case
 		host = "[" + host + "]"
 	}
 	var kdeProxyHostWithPort string

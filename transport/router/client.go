@@ -11,6 +11,7 @@ import (
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/transport/direct"
 	"github.com/floating-cat/heteroglossia/transport/reject"
+	"github.com/floating-cat/heteroglossia/transport/sq_carrier"
 	"github.com/floating-cat/heteroglossia/transport/ss_carrier"
 	"github.com/floating-cat/heteroglossia/transport/tr_carrier"
 	"github.com/floating-cat/heteroglossia/util/contextutil"
@@ -26,6 +27,12 @@ type client struct {
 	ruleDBFilePath string
 	tlsKeyLog      bool
 
+	// carrierClients caches one carrier client per outbound so that stateful
+	// transports (e.g. SunnyQUIC, which multiplexes every request over a single
+	// reused QUIC connection) are built once instead of on every DialTCP call.
+	carrierClients      map[string]transport.Client
+	carrierClientsMutex sync.Mutex
+
 	httpClient *http.Client
 }
 
@@ -33,7 +40,14 @@ var _ transport.Client = (*client)(nil)
 
 func NewClient(routing *conf.Routing, outbounds map[string]*conf.ProxyNode,
 	ruleDBFilePath string, autoUpdateRuleFiles bool, tlsKeyLog bool) transport.Client {
-	router := &client{routing, new(sync.RWMutex), outbounds, ruleDBFilePath, tlsKeyLog, nil}
+	router := &client{
+		routing:        routing,
+		routingRWMutex: new(sync.RWMutex),
+		outbounds:      outbounds,
+		ruleDBFilePath: ruleDBFilePath,
+		tlsKeyLog:      tlsKeyLog,
+		carrierClients: make(map[string]transport.Client),
+	}
 	router.httpClient = transport.HTTPClientThroughRouter(router)
 	if autoUpdateRuleFiles {
 		go updater.StartUpdateCron(func() {
@@ -83,13 +97,12 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 	var nextClient transport.Client
 	switch policy {
 	case "direct":
-		nextClient = direct.NewClient()
+		nextClient = direct.Client
 	case "reject":
-		nextClient = reject.NewClient()
+		nextClient = reject.Client
 	default:
-		proxyNode := c.outbounds[policy]
 		var err error
-		nextClient, err = newCarrierClient(c.routing.Transport.TCP, proxyNode, c.tlsKeyLog)
+		nextClient, err = c.getCarrierClient(policy)
 		if err != nil {
 			return nil, err
 		}
@@ -99,14 +112,36 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 	return nextClient.DialTCP(ctx, addr)
 }
 
-func newCarrierClient(t conf.TCPTransport, proxyNode *conf.ProxyNode, tlsKeyLog bool) (transport.Client, error) {
-	switch t {
-	case conf.TrojanTransport, conf.TrojanTransportAlias:
-		return tr_carrier.NewClient(proxyNode, tlsKeyLog)
+// getCarrierClient returns the cached carrier client for the given outbound,
+// building and caching it on first use. The global TCP transport type is
+// immutable after configuration, so a cached client stays valid for the
+// router's lifetime.
+func (c *client) getCarrierClient(outboundName string) (transport.Client, error) {
+	c.carrierClientsMutex.Lock()
+	defer c.carrierClientsMutex.Unlock()
+	carrierClient, ok := c.carrierClients[outboundName]
+	if ok {
+		return carrierClient, nil
+	}
+	proxyNode := c.outbounds[outboundName]
+	carrierClient, err := newCarrierClient(c.routing.Transport.TCP, proxyNode, c.tlsKeyLog)
+	if err != nil {
+		return nil, err
+	}
+	c.carrierClients[outboundName] = carrierClient
+	return carrierClient, nil
+}
+
+func newCarrierClient(transport conf.TCPTransport, proxyNode *conf.ProxyNode, tlsKeyLog bool) (transport.Client, error) {
+	switch transport {
 	case conf.ShadowsocksTransport, conf.ShadowsocksTransportAlias:
 		return ss_carrier.NewClient(proxyNode), nil
+	case conf.TrojanTransport, conf.TrojanTransportAlias:
+		return tr_carrier.NewClient(proxyNode, tlsKeyLog)
+	case conf.SunnyQUICTransport, conf.SunnyQUICTransportAlias:
+		return sq_carrier.NewClient(proxyNode, tlsKeyLog)
 	default:
-		return nil, errors.Newf("unsupported transport type: %v", t)
+		return nil, errors.Newf("unsupported transport type: %v", transport)
 	}
 }
 

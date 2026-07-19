@@ -11,7 +11,7 @@ import (
 
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/ioutil"
-	"github.com/floating-cat/heteroglossia/util/strutil"
+	"github.com/floating-cat/heteroglossia/util/netutil"
 )
 
 type SocketAddress struct {
@@ -139,12 +139,11 @@ func ToSocketAddr(host string, requirePort bool, defaultPort uint16) (*SocketAdd
 }
 
 func (addr *SocketAddress) ToHostStr() string {
-	port := strutil.ToA(addr.Port)
 	switch addr.AddrType {
 	case IPv4, IPv6:
-		return net.JoinHostPort(addr.IP.String(), port)
+		return netutil.JoinHostPort(addr.IP.String(), addr.Port)
 	default:
-		return net.JoinHostPort(addr.Domain, port)
+		return netutil.JoinHostPort(addr.Domain, addr.Port)
 	}
 }
 

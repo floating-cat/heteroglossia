@@ -15,7 +15,7 @@ import (
 type clientConn struct {
 	net.Conn
 	accessAddr           *transport.SocketAddress
-	passwordWithCRLF     [16]byte
+	passwordHash         [16]byte
 	hasWriteFirstPayload bool
 }
 
@@ -23,8 +23,8 @@ var _ net.Conn = (*clientConn)(nil)
 var _ io.ReaderFrom = (*clientConn)(nil)
 var _ io.WriterTo = (*clientConn)(nil)
 
-func newClientConn(conn net.Conn, accessAddr *transport.SocketAddress, passwordWithoutCRLF [16]byte) *clientConn {
-	return &clientConn{conn, accessAddr, passwordWithoutCRLF, false}
+func newClientConn(conn net.Conn, accessAddr *transport.SocketAddress, passwordHash [16]byte) *clientConn {
+	return &clientConn{conn, accessAddr, passwordHash, false}
 }
 
 func (c *clientConn) Write(b []byte) (n int, err error) {
@@ -52,7 +52,7 @@ func (c *clientConn) writeClientFirstPayload(payload []byte) (int, error) {
 	defer pool.Put(firstPayloadBs)
 
 	buf := bytes.NewBuffer(firstPayloadBs[:0])
-	buf.Write(c.passwordWithCRLF[:])
+	buf.Write(c.passwordHash[:])
 	buf.Write(crlf)
 	writeSOCKSLikeConnectionCommandRequest(buf, c.accessAddr)
 	buf.Write(payload)

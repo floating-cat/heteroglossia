@@ -17,27 +17,40 @@ import (
 )
 
 var (
-	tlsClientConfigMap      = make(map[string]*tls.Config)
+	tlsH2ClientConfigMap    = make(map[string]*tls.Config)
+	tlsH3ClientConfigMap    = make(map[string]*tls.Config)
 	tlsClientConfigMapMutex sync.Mutex
 
-	tlsServerConfigMap      = make(map[string]*tls.Config)
+	tlsH2ServerConfigMap    = make(map[string]*tls.Config)
+	tlsH3ServerConfigMap    = make(map[string]*tls.Config)
 	tlsServerConfigMapMutex sync.Mutex
+
+	h2ALPN = []string{"h2", "http/1.1"}
+	h3ALPN = []string{"h3"}
+
+	tlsKeyLogFileRemovalOnce sync.Once
 )
 
 const tlsKeyLogFilepath = "logs/tls_key.log"
 
-func TLSClientConfig(proxyNode *conf.ProxyNode, tlsKeyLog bool) (*tls.Config, error) {
+func TLSClientConfig(host string, tlsCustomCertFile string, tlsKeyLog bool, http3 bool) (*tls.Config, error) {
 	tlsClientConfigMapMutex.Lock()
 	defer tlsClientConfigMapMutex.Unlock()
-	tlsConfig, ok := tlsClientConfigMap[proxyNode.Host]
+	var tlsConfig *tls.Config
+	var ok bool
+	if http3 {
+		tlsConfig, ok = tlsH3ClientConfigMap[host]
+	} else {
+		tlsConfig, ok = tlsH2ClientConfigMap[host]
+	}
 	if ok {
 		return tlsConfig, nil
 	}
 
-	if proxyNode.TLSCustomCertFile == "" {
-		tlsConfig = &tls.Config{ServerName: proxyNode.Host}
+	if tlsCustomCertFile == "" {
+		tlsConfig = &tls.Config{ServerName: host}
 	} else {
-		certBs, err := ioutil.ReadFile(proxyNode.TLSCustomCertFile)
+		certBs, err := ioutil.ReadFile(tlsCustomCertFile)
 		if err != nil {
 			return nil, err
 		}
@@ -71,40 +84,66 @@ func TLSClientConfig(proxyNode *conf.ProxyNode, tlsKeyLog bool) (*tls.Config, er
 		}
 		tlsConfig.KeyLogWriter = tlsKeyLogFile
 
-		if len(tlsClientConfigMap) == 0 {
+		tlsKeyLogFileRemovalOnce.Do(func() {
 			osutil.RegisterProgramTerminationHandler(func() {
 				err := os.Remove(tlsKeyLogFilepath)
 				if err != nil {
 					log.WarnWithError("fail to remove the file", err, "path", tlsKeyLogFilepath)
 				}
 			})
-		}
+		})
 	}
+	tlsConfig.NextProtos = h2ALPN
+	tlsConfig.ClientSessionCache = tls.NewLRUClientSessionCache(0)
+	tlsH3Config := tlsConfig.Clone()
+	tlsH3Config.NextProtos = h3ALPN
+	tlsH3Config.ClientSessionCache = tls.NewLRUClientSessionCache(0)
 
-	tlsClientConfigMap[proxyNode.Host] = tlsConfig
+	tlsH2ClientConfigMap[host] = tlsConfig
+	tlsH3ClientConfigMap[host] = tlsH3Config
+	if http3 {
+		return tlsH3Config, nil
+	}
 	return tlsConfig, nil
 }
 
-func TLSServerConfig(hg *conf.Hg) (*tls.Config, error) {
+func TLSServerConfig(host string, tlsCertKeyPair *conf.TLSCertKeyPair, http3 bool) (*tls.Config, error) {
 	tlsServerConfigMapMutex.Lock()
 	defer tlsServerConfigMapMutex.Unlock()
-	tlsConfig, ok := tlsServerConfigMap[hg.Host]
+
+	var tlsConfig *tls.Config
+	var ok bool
+	if http3 {
+		tlsConfig, ok = tlsH3ServerConfigMap[host]
+	} else {
+		tlsConfig, ok = tlsH2ServerConfigMap[host]
+	}
 	if ok {
 		return tlsConfig, nil
 	}
 
-	if hg.TLSCertKeyPair == nil {
+	if tlsCertKeyPair == nil {
 		// use context.Background() for reusing the same tls.Config for different server types,
 		// otherwise cancel one context can stop tls.Config used by others
-		tlsConfig = tlsConfigWithAutomatedCertificate(context.Background(), hg.Host)
+		tlsConfig = tlsConfigWithAutomatedCertificate(context.Background(), host)
 	} else {
-		cert, err := tls.LoadX509KeyPair(hg.TLSCertKeyPair.CertFile, hg.TLSCertKeyPair.KeyFile)
+		cert, err := tls.LoadX509KeyPair(tlsCertKeyPair.CertFile, tlsCertKeyPair.KeyFile)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
 		tlsConfig = &tls.Config{Certificates: []tls.Certificate{cert}}
 	}
+	tlsConfig.NextProtos = h2ALPN
+	tlsConfig.ClientSessionCache = tls.NewLRUClientSessionCache(0)
+	tlsH3Config := tlsConfig.Clone()
+	tlsH3Config.NextProtos = h3ALPN
+	tlsH3Config.ClientSessionCache = tls.NewLRUClientSessionCache(0)
 
-	tlsServerConfigMap[hg.Host] = tlsConfig
+	tlsH2ServerConfigMap[host] = tlsConfig
+	tlsH3ServerConfigMap[host] = tlsH3Config
+
+	if http3 {
+		return tlsH3Config, nil
+	}
 	return tlsConfig, nil
 }

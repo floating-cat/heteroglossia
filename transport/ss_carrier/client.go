@@ -10,13 +10,12 @@ import (
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/netutil"
 	"github.com/floating-cat/heteroglossia/util/randutil"
-	"github.com/floating-cat/heteroglossia/util/strutil"
 )
 
 type client struct {
-	proxyNode    *conf.ProxyNode
-	preSharedKey []byte
-	aeadOverhead int
+	serverHostWithPort string
+	preSharedKey       []byte
+	aeadOverhead       int
 	// a function to randomly pick Ex2 and 5 mentioned here https://gfw.report/publications/usenixsecurity23/en/
 	exPicker func() int
 }
@@ -24,17 +23,21 @@ type client struct {
 var _ transport.Client = (*client)(nil)
 
 func NewClient(proxyNode *conf.ProxyNode) transport.Client {
-	return &client{proxyNode, proxyNode.Password.Raw[:], gcmTagOverhead, randutil.WeightedIntN(2)}
+	return &client{
+		netutil.JoinHostPort(proxyNode.Host, *proxyNode.TCPPort),
+		proxyNode.Password.Raw[:],
+		gcmTagOverhead,
+		randutil.WeightedIntN(2),
+	}
 }
 
 func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (net.Conn, error) {
 	clientSalt := generateSalt(c.preSharedKey)
 	c.customFirstReqPrefixes(clientSalt)
 
-	hostWithPort := c.proxyNode.Host + ":" + strutil.ToA(c.proxyNode.TCPPort)
-	targetConn, err := netutil.DialTCP(ctx, hostWithPort)
+	targetConn, err := netutil.DialTCP(ctx, c.serverHostWithPort)
 	if err != nil {
-		return nil, errors.Newf("fail to connect to the TCP server %v: %.0w", hostWithPort, err)
+		return nil, errors.Newf("fail to connect to the TCP server %v: %.0w", c.serverHostWithPort, err)
 	}
 	return newClientConn(targetConn, addr, c.preSharedKey, clientSalt, c.aeadOverhead), nil
 }

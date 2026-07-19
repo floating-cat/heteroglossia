@@ -10,11 +10,7 @@ import (
 
 type client struct{}
 
-var _ transport.Client = (*client)(nil)
-
-func NewClient() transport.Client {
-	return new(client)
-}
+var Client transport.Client = new(client)
 
 var rejectedErr = errors.New("rejected")
 

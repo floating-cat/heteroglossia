@@ -38,7 +38,7 @@ func StartTestServer(t *testing.T,
 	ctx, cancel := context.WithCancel(t.Context())
 	serverErr := make(chan error, 1)
 	go func() {
-		server := newServer(hg, direct.NewClient())
+		server := newServer(hg, direct.Client)
 		serverErr <- server.ListenAndServe(ctx)
 	}()
 	// tests in one package share the fixed server port from the config file,

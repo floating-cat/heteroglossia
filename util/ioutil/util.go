@@ -96,5 +96,6 @@ func Pipe(a, b io.ReadWriteCloser) error {
 	if errors.IsIoEof(err2) {
 		err2 = nil
 	}
+	// avoid wrapping errors with stack traces in this hot path to reduce allocations
 	return errors.Append(err1, err2)
 }

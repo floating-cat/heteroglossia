@@ -13,6 +13,8 @@ import (
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/transport/http_socks"
 	"github.com/floating-cat/heteroglossia/transport/router"
+	"github.com/floating-cat/heteroglossia/transport/sq_carrier"
+	"github.com/floating-cat/heteroglossia/transport/ss_carrier"
 	"github.com/floating-cat/heteroglossia/transport/tr_carrier"
 	"github.com/floating-cat/heteroglossia/util/cli"
 	"github.com/floating-cat/heteroglossia/util/errors"
@@ -49,12 +51,30 @@ func main() {
 
 	routerClient := router.NewClient(config.Routing, config.Outbounds,
 		ruleDBFilePath, config.Misc.RulesFileAutoUpdate, config.Misc.TLSKeyLog)
-	if config.Inbounds.Hg != nil {
+	hg := config.Inbounds.Hg
+	if hg != nil {
+		if hg.TCPPort != nil {
+			go func() {
+				server := ss_carrier.NewServer(hg, routerClient)
+				err := server.ListenAndServe(context.Background())
+				if err != nil {
+					log.Fatal("fail to start the Shadowsocks server", err)
+				}
+			}()
+		}
+		// TLS and QUIC ports are always non-empty, so there's no need to check them.
 		go func() {
-			server := tr_carrier.NewServer(config.Inbounds.Hg, routerClient)
+			server := tr_carrier.NewServer(hg, routerClient)
 			err := server.ListenAndServe(context.Background())
 			if err != nil {
-				log.Fatal("fail to start the hg server", err)
+				log.Fatal("fail to start the Trojan server", err)
+			}
+		}()
+		go func() {
+			server := sq_carrier.NewServer(hg, routerClient)
+			err := server.ListenAndServe(context.Background())
+			if err != nil {
+				log.Fatal("fail to start the SunnyQUIC server", err)
 			}
 		}()
 	}

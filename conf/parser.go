@@ -86,7 +86,7 @@ func validateRouting(config *Config) error {
 	// no need to check TLSPort for the Trojan protocol because it defaults to 443
 	case ShadowsocksTransport, ShadowsocksTransportAlias:
 		for name, node := range config.Outbounds {
-			if node.TCPPort == 0 {
+			if node.TCPPort == nil {
 				return errors.Newf("field Routing: field Transport: field TCP is \"%v\", "+
 					"but outbound %v has no \"tcp-port\" defined", routing.Transport.TCP, name)
 			}

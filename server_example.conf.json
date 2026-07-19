@@ -1,7 +1,7 @@
 {
   "inbounds": {
     "hg": {
-      "host": "localhost",
+      "host": "0.0.0.0",
       "password": "66cac28e26cd4d6faf944821c702fadb",
       "tcp-port": 2081,
       "tls-port": 2082,
