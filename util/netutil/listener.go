@@ -77,10 +77,14 @@ func ListenHTTPAndServeWithListenerCallback(ctx context.Context, addr string,
 		if listenerCallback != nil {
 			listenerCallback(ln)
 		}
+		protocols := new(http.Protocols)
+		protocols.SetHTTP1(true)
+		protocols.SetUnencryptedHTTP2(true)
 		server := &http.Server{
 			Handler:      httpHandler,
 			ReadTimeout:  httpReadTimeout,
 			WriteTimeout: httpWriteTimeout,
+			Protocols:    protocols,
 		}
 		return server.Serve(ln)
 	}, nil)

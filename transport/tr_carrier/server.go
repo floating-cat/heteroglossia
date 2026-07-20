@@ -49,7 +49,7 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 
 	port := make(chan uint16, 1)
 	go func() {
-		var httpHandler http.Handler
+		var httpHandler = http.NotFoundHandler()
 		if s.tlsBadAuthFallbackSiteDir != "" {
 			httpHandler = http.FileServer(http.Dir(s.tlsBadAuthFallbackSiteDir))
 		}
