@@ -2,6 +2,7 @@ package conf
 
 import (
 	"encoding/hex"
+	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"strings"
 
@@ -29,11 +30,12 @@ type HTTPSOCKS struct {
 	SystemProxy bool   `json:"system-proxy"`
 }
 
-func (httpSOCKS *HTTPSOCKS) UnmarshalJSON(data []byte) error {
+func (httpSOCKS *HTTPSOCKS) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	// https://stackoverflow.com/a/41102996
 	type HTTPSOCKSAlias HTTPSOCKS
 	httpSOCKSAlias := (*HTTPSOCKSAlias)(httpSOCKS)
 	httpSOCKSAlias.Port = defaultHTTPSOCKSPort
-	return json.Unmarshal(data, httpSOCKSAlias)
+	return json.UnmarshalDecode(dec, httpSOCKSAlias)
 }
 
 func (httpSOCKS *HTTPSOCKS) ToHTTPSOCKSAuthInfo() *HTTPSOCKSAuthInfo {
@@ -50,12 +52,12 @@ type Hg struct {
 	QUICPort                  uint16          `json:"quic-port"`
 }
 
-func (hg *Hg) UnmarshalJSON(data []byte) error {
+func (hg *Hg) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	type HgAlias Hg
 	hgAlias := (*HgAlias)(hg)
 	hgAlias.TLSPort = defaultTLSPort
 	hgAlias.QUICPort = defaultQUICPort
-	return json.Unmarshal(data, hgAlias)
+	return json.UnmarshalDecode(dec, hgAlias)
 }
 
 type ProxyNode struct {
@@ -72,9 +74,9 @@ type HexPassword struct {
 	String string
 }
 
-func (pw *HexPassword) UnmarshalJSON(data []byte) error {
+func (pw *HexPassword) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	var pwStr string
-	err := json.Unmarshal(data, &pwStr)
+	err := json.UnmarshalDecode(dec, &pwStr)
 	if err != nil {
 		return errors.New("fail to parse the \"password\" field", err)
 	}
@@ -88,12 +90,12 @@ func (pw *HexPassword) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (node *ProxyNode) UnmarshalJSON(data []byte) error {
+func (node *ProxyNode) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	type ProxyNodeAlias ProxyNode
 	proxyNodeAlias := (*ProxyNodeAlias)(node)
 	proxyNodeAlias.TLSPort = defaultTLSPort
 	proxyNodeAlias.QUICPort = defaultQUICPort
-	return json.Unmarshal(data, proxyNodeAlias)
+	return json.UnmarshalDecode(dec, proxyNodeAlias)
 }
 
 type Routing struct {
@@ -126,12 +128,11 @@ type Misc struct {
 	ProfilingPort       uint16 `json:"profiling-port"`
 }
 
-func (misc *Misc) UnmarshalJSON(data []byte) error {
-	// https://stackoverflow.com/a/41102996
+func (misc *Misc) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	type MiscAlias Misc
 	miscAlias := (*MiscAlias)(misc)
 	miscAlias.ProfilingPort = defaultProfilingPort
-	return json.Unmarshal(data, miscAlias)
+	return json.UnmarshalDecode(dec, miscAlias)
 }
 
 type TLSCertKeyPair struct {
@@ -139,9 +140,9 @@ type TLSCertKeyPair struct {
 	KeyFile  string
 }
 
-func (pair *TLSCertKeyPair) UnmarshalJSON(data []byte) error {
+func (pair *TLSCertKeyPair) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	var certKeyStr string
-	err := json.Unmarshal(data, &certKeyStr)
+	err := json.UnmarshalDecode(dec, &certKeyStr)
 	if err != nil {
 		return errors.New("fail to parse the \"tls-cert-key-pair\" field", err)
 	}

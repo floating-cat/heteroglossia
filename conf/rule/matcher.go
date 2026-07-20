@@ -1,6 +1,7 @@
 package rule
 
 import (
+	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"net/netip"
 	"regexp"
@@ -146,9 +147,9 @@ func (matcher *Matcher) MatchIP(ip *netip.Addr) bool {
 	return matcher.ipCidrMatcher.Contains(ip.Unmap())
 }
 
-func (matcher *Matcher) UnmarshalJSON(data []byte) error {
+func (matcher *Matcher) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	var matchRules []string
-	err := json.Unmarshal(data, &matchRules)
+	err := json.UnmarshalDecode(dec, &matchRules)
 	if err != nil {
 		return errors.New("fail to parse 'match' rules", err)
 	}

@@ -23,7 +23,7 @@ func Parse(configFilePath string, ruleDBFilePath string) (*Config, error) {
 	}
 
 	config := &Config{}
-	err = json.Unmarshal(bs, config)
+	err = json.Unmarshal(bs, config, json.RejectUnknownMembers(true))
 	if err != nil {
 		return nil, errors.Newf("fail to pase %v: %w", configFilePath, err)
 	}
