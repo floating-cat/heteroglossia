@@ -18,6 +18,7 @@ builds:
       - -trimpath
     ldflags:
       - -s -w -X 'github.com/floating-cat/heteroglossia/util/cli.Version={{.Version}}'
+    binary: hg
 archives:
   - files:
       - none*

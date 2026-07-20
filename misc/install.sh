@@ -52,7 +52,6 @@ sha256sum --ignore-missing -c sha256sums.txt
 rm sha256sums.txt
 tar -xzf "heteroglossia_${version:1}_${os}_${arch}.tar.gz"
 rm "heteroglossia_${version:1}_${os}_${arch}.tar.gz"
-mv heteroglossia hg
 
 read -r -p "Do you want to download the rules' file? [y/N] " yN
 yN=${yN,,}
