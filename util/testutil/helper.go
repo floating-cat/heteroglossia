@@ -52,23 +52,12 @@ func StartTestServer(t *testing.T,
 
 func TestRequestSuccess(t *testing.T, client *http.Client, url string) {
 	t.Helper()
-	resp, err := requestWithRetry(client, url)
+	// sleep briefly for the server to start up
+	time.Sleep(10 * time.Millisecond)
+	resp, err := client.Get(url)
 	must.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 	must.Between(t, 200, resp.StatusCode, 299)
-}
-
-// StartTestServer starts its server asynchronously without a readiness signal,
-// so retry until the listener is reachable
-func requestWithRetry(client *http.Client, url string) (resp *http.Response, err error) {
-	for range 100 {
-		resp, err = client.Get(url)
-		if err == nil {
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	return resp, err
 }
 
 func startWebServer() *httptest.Server {

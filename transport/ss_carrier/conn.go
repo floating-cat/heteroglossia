@@ -24,6 +24,7 @@ type conn struct {
 	preSharedKey []byte
 
 	clientSalt  []byte
+	saltSize    int
 	aeadWriter  cipher.AEAD
 	nonceWriter []byte
 
@@ -43,13 +44,16 @@ var _ io.ReaderFrom = (*conn)(nil)
 var _ io.WriterTo = (*conn)(nil)
 
 func newClientConn(tcpConn *net.TCPConn, accessAddr *transport.SocketAddress,
-	preSharedKey []byte, clientSalt []byte, aeadOverhead int) *conn {
+	preSharedKey []byte, salt []byte, aeadOverhead int) *conn {
 	return &conn{TCPConn: tcpConn, accessAddr: accessAddr,
-		preSharedKey: preSharedKey, clientSalt: clientSalt, aeadOverhead: aeadOverhead, isClient: true}
+		preSharedKey: preSharedKey, clientSalt: salt, saltSize: len(salt), aeadOverhead: aeadOverhead,
+		isClient: true}
 }
 
 func newServerConn(tcpConn *net.TCPConn, preSharedKey []byte, aeadOverhead int, serverSideSaltPool *saltPool[string]) *conn {
-	return &conn{TCPConn: tcpConn, preSharedKey: preSharedKey, aeadOverhead: aeadOverhead, isClient: false, serverSideSaltPool: serverSideSaltPool}
+	// salt has the same length as the pre-shared key
+	return &conn{TCPConn: tcpConn, preSharedKey: preSharedKey, saltSize: len(preSharedKey), aeadOverhead: aeadOverhead,
+		isClient: false, serverSideSaltPool: serverSideSaltPool}
 }
 
 const (
@@ -112,8 +116,7 @@ func (c *conn) writeClientFirstPayload(payload []byte) error {
 
 	reqPaddingOrPayloadStart := socks.SOCKSLikeAddrSizeInBytes(c.accessAddr) + lenFieldSize
 	reqVarLenHeaderSize := reqPaddingOrPayloadStart + reqPaddingAndPayloadSize
-	saltSize := len(c.preSharedKey)
-	reqVarLenHeaderEncryptedStart := saltSize + reqFixedLenHeaderSize + c.aeadOverhead
+	reqVarLenHeaderEncryptedStart := c.saltSize + reqFixedLenHeaderSize + c.aeadOverhead
 	reqHeaderEncryptedBs := pool.Get(reqVarLenHeaderEncryptedStart + reqVarLenHeaderSize + c.aeadOverhead)
 	defer pool.Put(reqHeaderEncryptedBs)
 
@@ -123,7 +126,7 @@ func (c *conn) writeClientFirstPayload(payload []byte) error {
 	// +------+------------------+--------+
 	// |  1B  | u64be unix epoch |  u16be |
 	// +------+------------------+--------+
-	reqFixedLenHeaderBs := reqHeaderEncryptedBs[saltSize:reqVarLenHeaderEncryptedStart]
+	reqFixedLenHeaderBs := reqHeaderEncryptedBs[c.saltSize:reqVarLenHeaderEncryptedStart]
 	reqFixedLenHeaderBuf := bytes.NewBuffer(reqFixedLenHeaderBs[:0])
 	reqFixedLenHeaderBuf.WriteByte(clientStreamHeaderType)
 	err := binary.Write(reqFixedLenHeaderBuf, binary.BigEndian, uint64(time.Now().Unix()))
@@ -176,9 +179,8 @@ First response stream
 +--------+------------------------+---------------------------+
 */
 func (c *conn) writeServerFirstPayload(payload []byte) error {
-	saltSize := len(c.preSharedKey)
 	payloadSize := len(payload)
-	respPayloadEncryptedStart := saltSize + reqFixedLenHeaderSize + saltSize + c.aeadOverhead
+	respPayloadEncryptedStart := c.saltSize + reqFixedLenHeaderSize + c.saltSize + c.aeadOverhead
 	respSaltWithFixedLenHeaderAndPayloadEncryptedBs := pool.Get(respPayloadEncryptedStart + payloadSize + c.aeadOverhead)
 	defer pool.Put(respSaltWithFixedLenHeaderAndPayloadEncryptedBs)
 	respSaltWithFixedLenHeaderAndPayloadEncryptedBuf := bytes.NewBuffer(respSaltWithFixedLenHeaderAndPayloadEncryptedBs[:0])
@@ -209,8 +211,8 @@ func (c *conn) writeServerFirstPayload(payload []byte) error {
 	}
 	c.setAEADWriter(serverAEAD)
 
-	respFixedLenHeaderEncryptedBs := respSaltWithFixedLenHeaderAndPayloadEncryptedBs[saltSize:]
-	c.encryptInPlace(respFixedLenHeaderEncryptedBs[:reqFixedLenHeaderSize+saltSize])
+	respFixedLenHeaderEncryptedBs := respSaltWithFixedLenHeaderAndPayloadEncryptedBs[c.saltSize:]
+	c.encryptInPlace(respFixedLenHeaderEncryptedBs[:reqFixedLenHeaderSize+c.saltSize])
 	respVarLenHeaderEncryptedBs := respSaltWithFixedLenHeaderAndPayloadEncryptedBs[respPayloadEncryptedStart:]
 	c.encryptInPlace(respVarLenHeaderEncryptedBs[:payloadSize])
 	_, err = c.TCPConn.Write(respSaltWithFixedLenHeaderAndPayloadEncryptedBs)
@@ -278,21 +280,20 @@ func (c *conn) readOrWriteTo(b []byte, w io.Writer) (n int, err error) {
 
 func (c *conn) readServerFirstPayload(b []byte, w io.Writer) (int, error) {
 	c.hasReadFirstPayload = true
-	saltSize := len(c.preSharedKey)
-	respSaltWithFixedLenHeaderEncryptedBs := pool.Get(saltSize + reqFixedLenHeaderSize + saltSize + c.aeadOverhead)
+	respSaltWithFixedLenHeaderEncryptedBs := pool.Get(c.saltSize + reqFixedLenHeaderSize + c.saltSize + c.aeadOverhead)
 	defer pool.Put(respSaltWithFixedLenHeaderEncryptedBs)
 	_, err := ioutil.ReadOnceExpectFull(c.TCPConn, respSaltWithFixedLenHeaderEncryptedBs)
 	if err != nil {
 		return 0, err
 	}
 
-	serverAEAD, err := aeadCipher(c.preSharedKey, respSaltWithFixedLenHeaderEncryptedBs[:saltSize])
+	serverAEAD, err := aeadCipher(c.preSharedKey, respSaltWithFixedLenHeaderEncryptedBs[:c.saltSize])
 	if err != nil {
 		return 0, err
 	}
 	c.setAEADReader(serverAEAD)
 
-	respFixedLenHeaderEncryptedBs := respSaltWithFixedLenHeaderEncryptedBs[saltSize:]
+	respFixedLenHeaderEncryptedBs := respSaltWithFixedLenHeaderEncryptedBs[c.saltSize:]
 	err = c.decryptInPlace(respFixedLenHeaderEncryptedBs)
 	if err != nil {
 		return 0, err
@@ -331,8 +332,7 @@ func (c *conn) readClientFirstPayload() error {
 			}
 		}
 	}()
-	saltSize := len(c.preSharedKey)
-	reqSaltWithFixedLenHeaderEncryptedSize := saltSize + reqFixedLenHeaderSize + c.aeadOverhead
+	reqSaltWithFixedLenHeaderEncryptedSize := c.saltSize + reqFixedLenHeaderSize + c.aeadOverhead
 	reqSaltWithFixedLenHeaderEncryptedBs := pool.Get(reqSaltWithFixedLenHeaderEncryptedSize)
 	defer pool.Put(reqSaltWithFixedLenHeaderEncryptedBs)
 	_, err = ioutil.ReadOnceExpectFull(c.TCPConn, reqSaltWithFixedLenHeaderEncryptedBs)
@@ -340,19 +340,20 @@ func (c *conn) readClientFirstPayload() error {
 		return err
 	}
 
-	c.clientSalt = reqSaltWithFixedLenHeaderEncryptedBs[:saltSize]
+	// copy the salt out of the pooled buffer because it is referenced later
+	c.clientSalt = bytes.Clone(reqSaltWithFixedLenHeaderEncryptedBs[:c.saltSize])
 	clientSaltStr := string(c.clientSalt)
 	ok := c.serverSideSaltPool.checkAndAdd(clientSaltStr)
 	if !ok {
 		return errors.New("replay detected due to repeated salt found")
 	}
-	clientAEAD, err := aeadCipher(c.preSharedKey, reqSaltWithFixedLenHeaderEncryptedBs[:saltSize])
+	clientAEAD, err := aeadCipher(c.preSharedKey, reqSaltWithFixedLenHeaderEncryptedBs[:c.saltSize])
 	if err != nil {
 		return err
 	}
 	c.setAEADReader(clientAEAD)
 
-	reqFixedLenHeaderEncryptedBs := reqSaltWithFixedLenHeaderEncryptedBs[saltSize:]
+	reqFixedLenHeaderEncryptedBs := reqSaltWithFixedLenHeaderEncryptedBs[c.saltSize:]
 	err = c.decryptInPlace(reqFixedLenHeaderEncryptedBs)
 	if err != nil {
 		return err
@@ -444,8 +445,7 @@ func (c *conn) validateFixedHeaderAndReturnLen(fixedLenHeaderBs []byte) (int, er
 
 	var lenStart int
 	if c.isClient {
-		saltSize := len(c.preSharedKey)
-		lenStart = typeWithTimestampSize + saltSize
+		lenStart = typeWithTimestampSize + c.saltSize
 		receivedClientSalt := fixedLenHeaderBs[typeWithTimestampSize:lenStart]
 		if !bytes.Equal(c.clientSalt, receivedClientSalt) {
 			return 0, errors.New("incorrect client salt in response header")
