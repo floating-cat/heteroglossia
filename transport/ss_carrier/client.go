@@ -16,7 +16,8 @@ type client struct {
 	serverHostWithPort string
 	preSharedKey       []byte
 	aeadOverhead       int
-	// a function to randomly pick Ex2 and 5 mentioned here https://gfw.report/publications/usenixsecurity23/en/
+	// A function to randomly pick Ex2 and 5 mentioned here
+	// https://gfw.report/publications/usenixsecurity23/en/.
 	exPicker func() int
 }
 

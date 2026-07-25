@@ -15,14 +15,14 @@ func TestTRClientServerConnection(t *testing.T) {
 	testutil.TestClientServerConnection(t, newTRClient, NewServer)
 }
 
-// a request with invalid protocols should be served the fallback site
-// as if the server were a normal HTTPS server
+// A request with invalid protocols should be served the fallback site
+// as if the server were a normal HTTPS server.
 func TestTRServerServesFallbackHomePageOverHTTPS(t *testing.T) {
 	hg := testutil.StartTestServer(t, NewServer)
 	url := "https://" + netutil.JoinHostPort(hg.Host, hg.TLSPort)
 
-	// the TLS listener advertises ALPN "h2" and "http/1.1", so verify both are
-	// served (HTTP/2 relies on the fallback server speaking cleartext HTTP/2)
+	// The TLS listener advertises ALPN "h2" and "http/1.1", so verify both are
+	// served (HTTP/2 relies on the fallback server speaking cleartext HTTP/2).
 	t.Run("HTTP/1.1", func(t *testing.T) {
 		httpClient := newHTTPSClientWithCert(t, hg, false)
 		testutil.TestRequestSuccess(t, httpClient, url)

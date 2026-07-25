@@ -32,7 +32,8 @@ func ReadN(r io.Reader, n int) (int, []byte, error) {
 }
 
 // https://github.com/Shadowsocks-NET/shadowsocks-specs/blob/main/2022-1-shadowsocks-2022-edition.md#313-detection-prevention
-// To process the salt and the fixed-length header, servers and clients MUST make exactly one read call
+// To process the salt and the fixed-length header, servers and clients
+// MUST make exactly one read call
 
 func ReadOnceExpectFull(r io.Reader, buf []byte) (int, error) {
 	count, err := r.Read(buf)
@@ -96,6 +97,6 @@ func Pipe(a, b io.ReadWriteCloser) error {
 	if errors.IsIoEof(err2) {
 		err2 = nil
 	}
-	// avoid wrapping errors with stack traces in this hot path to reduce allocations
+	// Avoid wrapping errors with stack traces in this hot path to reduce allocations.
 	return errors.Append(err1, err2)
 }

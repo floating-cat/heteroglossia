@@ -15,8 +15,8 @@ type server struct {
 	hostWithPort string
 	preSharedKey []byte
 	aeadOverhead int
-	// we can use '[16]byte' here actually, but we still use string here
-	// because we may support "2022-blake3-aes-256-gcm" later which uses '[32]byte'
+	// We can use '[16]byte' here actually, but we still use string here
+	// because we may support "2022-blake3-aes-256-gcm" later which uses '[32]byte'.
 	saltPool     *saltPool[string]
 	targetClient transport.Client
 }

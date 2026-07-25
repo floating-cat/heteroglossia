@@ -37,7 +37,8 @@ func (s *Server) ListenAndServe(context.Context) error {
 }
 
 // forked from https://github.com/database64128/shadowsocks-go/blob/88c2d63ccd0b022f76902195ceb1559eaf15a3a7/http/server.go
-// always consider connection persistent and take little care of HTTP connection header to make the impl simper
+// Always consider connection persistent and take little care of HTTP
+// connection header to make the impl simper.
 
 func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 	buf := pool.Get(ioutil.BufSize)
@@ -55,8 +56,9 @@ func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 		// There is no default port; a client MUST send the port number
 		// even if the CONNECT request is based on a URI reference that
 		// contains an authority component with an elided port.
-		// A server MUST reject a CONNECT request that targets an empty or invalid port number,
-		// typically by responding with a 400 (Bad Request) status code.
+		// A server MUST reject a CONNECT request that targets an empty
+		// or invalid port number, typically by responding with a 400
+		// (Bad Request) status code.
 		addr, err = transport.ToSocketAddr(req.Host, true, 0)
 	} else {
 		addr, err = transport.ToSocketAddr(req.Host, false, 80)
@@ -111,9 +113,11 @@ func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 			}
 
 			// https://datatracker.ietf.org/doc/html/rfc9110#name-connect
-			// A tunnel is closed when a tunnel intermediary detects that either side has closed its connection:
-			// the intermediary MUST attempt to send any outstanding data that came from the closed side to the other side,
-			// close both connections, and then discard any remaining data left undelivered.
+			// A tunnel is closed when a tunnel intermediary detects that
+			// either side has closed its connection: the intermediary MUST
+			// attempt to send any outstanding data that came from the closed
+			// side to the other side, close both connections, and then
+			// discard any remaining data left undelivered.
 			if req.Close || resp.Close {
 				break
 			}

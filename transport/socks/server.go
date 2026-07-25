@@ -76,8 +76,8 @@ func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 }
 
 func (s *Server) handleClientHelloRequest(ctx context.Context, conn net.Conn) error {
-	// the version byte of the SOCKS5 protocol is already checked in the http_socks package,
-	// so we start to check the 'methods' directly
+	// The version byte of the SOCKS5 protocol is already checked in the
+	// http_socks package, so we start to check the 'methods' directly.
 	methods, err := ioutil.ReadByUint8(conn)
 	if err != nil {
 		return err
@@ -179,9 +179,12 @@ Response
 var connectionCommandNotSupportedBytes = []byte{Version5, connectionCommandNotSupported, connectionReserved,
 	connectionAddressIPv4, 0, 0, 0, 0, 0}
 
-// According to the rfc1928, we need to return the source address/port that SOCKS5 server used to connect to the target host,
-// however, we just return dummy values here as these values are not useful to a client, and some SOCKS5 servers return the dummy values.
-// See https://stackoverflow.com/q/43013695, https://stackoverflow.com/q/39990056, and https://stackoverflow.com/q/72753182
+// According to the rfc1928, we need to return the source address/port that
+// SOCKS5 server used to connect to the target host, however, we just return
+// dummy values here as these values are not useful to a client, and some
+// SOCKS5 servers return the dummy values. See
+// https://stackoverflow.com/q/43013695, https://stackoverflow.com/q/39990056,
+// and https://stackoverflow.com/q/72753182.
 var connectionSucceededPrefix = []byte{Version5, connectionSucceeded, connectionReserved,
 	1, 0, 0, 0, 0, 0, 0}
 

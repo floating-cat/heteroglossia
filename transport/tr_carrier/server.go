@@ -81,7 +81,7 @@ func (s *server) Serve(ctx context.Context, conn net.Conn) error {
 	bufReader := ioutil.NewBufioReader(buf, conn)
 	textProtoReader := textproto.NewReader(bufReader)
 
-	// read one line to make our server like a normal HTTP server
+	// Read one line to make our server like a normal HTTP server.
 	lineBs, err := textProtoReader.ReadLineBytes()
 	if err != nil {
 		return errors.WithStack(err)
@@ -93,9 +93,9 @@ func (s *server) Serve(ctx context.Context, conn net.Conn) error {
 		if err != nil {
 			return errors.WithStack(err)
 		}
-		// assume CRLF line endings (length = 2). This also works if the original
+		// Assume CRLF line endings (length = 2). This also works if the original
 		// request uses only LF and won't cause any security issues because we only
-		// forward the request to our internal web server
+		// forward the request to our internal web server.
 		unrelatedBs := pool.Get(len(lineBs) + 2 + len(unreadBs))[:0]
 		defer pool.Put(unrelatedBs)
 		unrelatedBs = append(unrelatedBs, lineBs...)

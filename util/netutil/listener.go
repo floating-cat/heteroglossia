@@ -103,8 +103,8 @@ func ListenQUICEarlyAndServe(ctx context.Context, addr string, tlsConf *tls.Conf
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	// https://quic-go.net/docs/quic/server/
-	// closing the listener associated with a Transport doesn’t
-	// close QUIC connections accepted from this listener
+	// Closing the listener associated with Transport doesn’t
+	// close QUIC connections accepted from this listener.
 	conn, err := listenConfig.ListenPacket(ctx, "udp", addr)
 	if err != nil {
 		return errors.WithStack(err)

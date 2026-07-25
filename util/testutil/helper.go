@@ -41,8 +41,9 @@ func StartTestServer(t *testing.T,
 		server := newServer(hg, direct.Client)
 		serverErr <- server.ListenAndServe(ctx)
 	}()
-	// tests in one package share the fixed server port from the config file,
-	// so wait for the server to shut down and release its port before the next test starts
+	// Tests in one package share the fixed server port from the config file,
+	// so wait for the server to shut down and release its port before the
+	// next test starts
 	t.Cleanup(func() {
 		cancel()
 		must.NoError(t, <-serverErr)

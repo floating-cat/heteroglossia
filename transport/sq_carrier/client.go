@@ -61,8 +61,8 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 	return newStreamConn(stream, conn), nil
 }
 
-// getQUICConn returns a live authenticated QUIC connection, dialing a new one if
-// none exists yet or the previous one has been closed.
+// getQUICConn returns a live authenticated QUIC connection, dialing a new
+// one if none exists yet or the previous one has been closed.
 func (c *client) getQUICConn(ctx context.Context) (*quic.Conn, error) {
 	c.quicConnMutex.Lock()
 	defer c.quicConnMutex.Unlock()
@@ -93,10 +93,11 @@ func (c *client) getQUICConn(ctx context.Context) (*quic.Conn, error) {
 	}
 }
 
-// authenticate delivers the authentication command over conn, sending it as 0-RTT
-// early data when the dial resumed a TLS session. Authentication is idempotent, so
-// it is safe both as 0-RTT data and to re-send: if the server rejects 0-RTT,
-// the early data is discarded, so it re-sends once the 1-RTT handshake is up.
+// authenticate delivers the authentication command over conn, sending it as
+// 0-RTT early data when the dial resumed a TLS session. Authentication is
+// idempotent, so it is safe both as 0-RTT data and to re-send: if the server
+// rejects 0-RTT, the early data is discarded, so it re-sends once the 1-RTT
+// handshake is up.
 func (c *client) authenticate(conn *quic.Conn) error {
 	err := c.sendAuthenticationCommand(conn)
 	rtt0Rejected := errors.Is(err, quic.Err0RTTRejected)

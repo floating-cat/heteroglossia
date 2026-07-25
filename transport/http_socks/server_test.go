@@ -40,7 +40,8 @@ func TestProxyConnectionHandle(t *testing.T) {
 
 	for _, i := range proxyProtocolInfo {
 		prefix, webAddr := i.proxyProtocolPrefix, webServerAddrWithPort
-		// serverAuth is what the proxy server requires; clientAuth is what the client sends
+		// serverAuth is what the proxy server requires; clientAuth is what
+		// the client sends
 		t.Run(i.proxyProtocolName+" with a no-auth server",
 			startServerAndClient(prefix, webAddr, nil, nil, false))
 		t.Run(i.proxyProtocolName+" with an empty-auth server",
@@ -55,8 +56,8 @@ func TestProxyConnectionHandle(t *testing.T) {
 func startServerAndClient(proxyProtocolPrefix, webServerAddrWithPort string,
 	serverAuth, clientAuth *conf.HTTPSOCKSAuthInfo, expectErr bool) func(t *testing.T) {
 	return func(t *testing.T) {
-		// run the client's assertions on the test goroutine: must.* calls FailNow,
-		// which is only valid on the goroutine running the test
+		// Run the client's assertions on the test goroutine: must.* calls FailNow,
+		// which is only valid on the goroutine running the test.
 		clientErr := make(chan error, 1)
 		serverErr := startProxyServer(t, serverAuth, func(ln net.Listener) {
 			port := uint16(ln.Addr().(*net.TCPAddr).Port)
@@ -100,7 +101,7 @@ func startProxyServer(t *testing.T, authInfo *conf.HTTPSOCKSAuthInfo, listenSucc
 
 	select {
 	case err := <-serverErr:
-		// returning triggers the deferred cancel(), which stops the server listener
+		// Returning triggers the deferred cancel(), which stops the server listener.
 		return err
 	case <-ctx.Done():
 		return errors.New("timeout waiting for the proxy server to handle the connection", ctx.Err())

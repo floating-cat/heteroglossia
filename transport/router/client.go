@@ -77,7 +77,8 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 					break matchAgain
 				}
 			}
-			// some clients (e.g., Chrome SmartProxy extension) send IP addresses within domain types in the SOCKS protocol
+			// Some clients (e.g., Chrome SmartProxy extension) send IP addresses
+			// within domain types in the SOCKS protocol.
 			ip, err := netip.ParseAddr(addr.Domain)
 			if err == nil {
 				addr = transport.NewSocketAddressByIP(&ip, addr.Port)

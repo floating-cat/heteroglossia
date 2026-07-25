@@ -44,8 +44,9 @@ func (c *bytesReadPreloadConn) readPreloadData(p []byte, w io.Writer) (int, erro
 	// Return directly because the documentation says:
 	// If some data is available but not len(p) bytes, Read conventionally
 	// returns what is available instead of waiting for more.
-	// If we try to read here, it will not send the preload bytes and will be stuck in reading.
-	// And the server is still waiting for the first request and won't send anything back.
+	// If we try to read here, it will not send the preload bytes and will
+	// be stuck in reading. And the server is still waiting for the first
+	// request and won't send anything back.
 	return n, nil
 }
 

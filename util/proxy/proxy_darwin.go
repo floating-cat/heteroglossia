@@ -10,7 +10,7 @@ import (
 	"github.com/floating-cat/heteroglossia/util/log"
 )
 
-// not work when macOS's 'System Settings -> VPN' is enabled
+// SetSystemProxy doesn't work when macOS's 'System Settings -> VPN' is enabled.
 func SetSystemProxy(host string, port uint16, authInfo *conf.HTTPSOCKSAuthInfo) (unsetProxy func(), err error) {
 	serviceName, err := currentNetworkServiceName()
 	if err != nil {
@@ -23,7 +23,7 @@ networksetup -setsecurewebproxy %[1]v %[2]v %[3]v off &&
 networksetup -setsocksfirewallproxy %[1]v %[2]v %[3]v off`),
 			serviceName, host, port, authInfo.Username, authInfo.Password)
 	} else {
-		// try to unset the auth info for system proxy
+		// try to unset the auth info for the system proxy
 		// may unset the auth info configured by user or other apps
 		unsetAuthInfo(host)
 		proxySetCommand = fmt.Sprintf(trimNewLinesForRawStringLiteral(`networksetup -setwebproxy %[1]v %[2]v %[3]v on %[4]v %[5]v && 

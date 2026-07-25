@@ -13,7 +13,8 @@ import (
 
 func SetSystemProxy(host string, port uint16, authInfo *conf.HTTPSOCKSAuthInfo) (unsetProxy func(), err error) {
 	// https://developer-old.gnome.org/ProxyConfiguration/
-	// org.gnome.system.proxy use-same-proxy and org.gnome.system.proxy.http enabled are not used so don't use them
+	// 'org.gnome.system.proxy use-same-proxy' and
+	// 'org.gnome.system.proxy.http enabled' are not used so don't use them
 	gnomeProxySetCommand := fmt.Sprintf(trimNewLinesForRawStringLiteral(`gsettings set org.gnome.system.proxy mode 'manual' && 
 gsettings set org.gnome.system.proxy.http host '%[1]v' && 
 gsettings set org.gnome.system.proxy.http port %[2]v && 
@@ -25,8 +26,8 @@ gsettings set org.gnome.system.proxy.https port %[2]v &&
 gsettings set org.gnome.system.proxy.socks host '%[1]v' && 
 gsettings set org.gnome.system.proxy.socks port %[2]v`),
 		host, port, strconv.FormatBool(!authInfo.IsEmpty()), authInfo.Username, authInfo.Password)
-	// use 'dbus-run-session' command to invoke the `gsettings` commands otherwise it won't work
-	// due to https://askubuntu.com/q/276509
+	// use 'dbus-run-session' command to invoke the `gsettings` commands
+	// otherwise it won't work due to https://askubuntu.com/q/276509
 	_, stderr, err := cmd.RunWithStdoutErrResults("dbus-run-session", "--", "/bin/sh", "-c", gnomeProxySetCommand)
 	if err != nil {
 		log.WarnWithError("fail to set system proxy for Gnome", err)
@@ -43,7 +44,9 @@ gsettings set org.gnome.system.proxy.socks port %[2]v`),
 	if authInfo.IsEmpty() {
 		kdeProxyHostWithPort = fmt.Sprintf("%v:%v", host, port)
 	} else {
-		// there is a KDE bug that it fails to set a URL including both auth info and IPv6 address (e.g., http://username:password@[::1]:1080
+		// There is a KDE bug where it fails to set a URL containing both
+		// authentication information and an IPv6 address (e.g.,
+		// http://username:password@[::1]:1080).
 		kdeProxyHostWithPort = fmt.Sprintf("%v:%v@%v:%v", url.QueryEscape(authInfo.Username), url.QueryEscape(authInfo.Password), host, port)
 	}
 	kdeProxySetCommand := fmt.Sprintf(trimNewLinesForRawStringLiteral(`kwriteconfig6 --file kioslaverc --group 'Proxy Settings' --key ProxyType 1 && 

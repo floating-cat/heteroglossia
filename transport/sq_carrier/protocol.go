@@ -11,7 +11,7 @@ const (
 	tcpConnectCommand byte = 0 // TCP Connect, followed by a SOCKSADDR
 	authCommand       byte = 5 // SunnyQUIC authentication, followed by AUTH_HASH
 
-	// use 0 and an empty string for active detection
+	// Use 0 and an empty string for active detection.
 	connCloseErrCode                            = quic.ApplicationErrorCode(0)
 	connCloseErrDesc                            = ""
 	streamConnCloseErrCode quic.StreamErrorCode = 0

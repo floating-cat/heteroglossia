@@ -24,10 +24,10 @@ func toSunnyQUICAuthHash(password *conf.Password) [64]byte {
 }
 
 // toStatelessResetKey deterministically derives the QUIC stateless reset key
-// from the server password. Deriving it from the stable password keeps the key
-// constant across reboots (so previously issued reset tokens stay valid) without
-// persisting extra state, while a dedicated HKDF info string keeps it separate
-// from the authentication hash.
+// from the server password. Deriving it from the stable password keeps the
+// key constant across reboots (so previously issued reset tokens stay valid)
+// without persisting extra state, while a dedicated HKDF info string keeps
+// it separate from the authentication hash.
 // https://quic-go.net/docs/quic/transport/#stateless-reset
 func toStatelessResetKey(password *conf.Password) *quic.StatelessResetKey {
 	var key = new(quic.StatelessResetKey)

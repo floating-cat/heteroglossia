@@ -325,7 +325,8 @@ func (c *conn) readClientFirstPayload() error {
 	defer func() {
 		if err != nil {
 			// https://github.com/Shadowsocks-NET/shadowsocks-specs/blob/main/2022-1-shadowsocks-2022-edition.md#313-detection-prevention
-			// To consistently send RST even when the received buffer is empty, set 'SO_LINGER' to true with a zero timeout, then close the socket.
+			// To consistently send RST even when the received buffer is empty,
+			// set 'SO_LINGER' to true with a zero timeout, then close the socket.
 			err = c.TCPConn.SetLinger(0)
 			if err != nil {
 				log.WarnWithError("fail to set SO_LINGER", err)
@@ -340,7 +341,7 @@ func (c *conn) readClientFirstPayload() error {
 		return err
 	}
 
-	// copy the salt out of the pooled buffer because it is referenced later
+	// Copy the salt out of the pooled buffer because it is referenced later.
 	c.clientSalt = bytes.Clone(reqSaltWithFixedLenHeaderEncryptedBs[:c.saltSize])
 	clientSaltStr := string(c.clientSalt)
 	ok := c.serverSideSaltPool.checkAndAdd(clientSaltStr)
@@ -381,9 +382,10 @@ func (c *conn) readClientFirstPayload() error {
 	c.accessAddr = accessAddr
 
 	// https://github.com/Shadowsocks-NET/shadowsocks-specs/blob/main/2022-1-shadowsocks-2022-edition.md#312-format
-	// Servers MUST reject the request if the variable-length header chunk does not contain payload
-	// and the padding length is 0. Servers MUST enforce that the request header (including padding)
-	// does not extend beyond the header chunks.
+	// Servers MUST reject the request if the variable-length header chunk
+	// does not contain payload and the padding length is 0. Servers MUST
+	// enforce that the request header (including padding) does not extend
+	// beyond the header chunks.
 	if reqVarLenHeaderReader.Len() <= lenFieldSize {
 		return errors.New("client payload and the padding length are both 0 in request variable-length header")
 	}
@@ -466,9 +468,10 @@ func (c *conn) ReadFrom(r io.Reader) (n int64, err error) {
 
 	if !c.hasWriteFirstPayload {
 		c.hasWriteFirstPayload = true
-		// The initial payload is carried inside the first variable-length header chunk,
-		// including the request address and padding-length field on the ss client side.
-		// Therefore, we need to subtract these when reading the payload from the request side.
+		// The initial payload is carried inside the first variable-length
+		// header chunk, including the request address and padding-length
+		// field on the ss client side. Therefore, we need to subtract these
+		// when reading the payload from the request side.
 		// request payload -> ss client -> ss server
 		var maxFirstPayloadSize int
 		if c.isClient {

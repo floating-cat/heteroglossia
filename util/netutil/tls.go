@@ -123,8 +123,9 @@ func TLSServerConfig(host string, tlsCertKeyPair *conf.TLSCertKeyPair, http3 boo
 	}
 
 	if tlsCertKeyPair == nil {
-		// use context.Background() for reusing the same tls.Config for different server types,
-		// otherwise cancel one context can stop tls.Config used by others
+		// Use context.Background() for reusing the same tls.Config for
+		// different server types, otherwise cancel one context can stop
+		// tls.Config used by others.
 		tlsConfig = tlsConfigWithAutomatedCertificate(context.Background(), host)
 	} else {
 		cert, err := tls.LoadX509KeyPair(tlsCertKeyPair.CertFile, tlsCertKeyPair.KeyFile)

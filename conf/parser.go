@@ -132,7 +132,8 @@ func validate(config *Config) error {
 				),
 				govy.NewRule(func(tcp TCPTransport) error {
 					switch tcp {
-					// no need to check TLSPort and QUICPort for other protocols because they have default values.
+					// No need to check TLSPort and QUICPort for other protocols
+					// because they have default values.
 					case ShadowsocksTransport, ShadowsocksTransportAlias:
 						for name, proxyNode := range config.Outbounds {
 							if proxyNode == nil {

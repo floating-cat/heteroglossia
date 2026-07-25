@@ -35,13 +35,13 @@ func NewServer(httpSOCKS *conf.HTTPSOCKS, targetClient transport.Client) transpo
 }
 
 func (s *server) ListenAndServe(ctx context.Context) error {
-	// when one listener returns, cancel the context so the sibling listener
-	// shuts down instead of running unsupervised
+	// When one listener returns, cancel the context, so the sibling listener
+	// shuts down instead of running unsupervised.
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// can't listen to IPv4 & IPv6 together due to https://github.com/golang/go/issues/9334
-	// so also listen to IPv4 one when using '::1' or '::'
+	// can't listen to IPv4 & IPv6 together, so also listen to IPv4 one
+	// when using '::1' or '::'. See https://github.com/golang/go/issues/9334.
 	host := s.httpSOCKS.Host
 	connHandler := func(conn *net.TCPConn) {
 		err := s.Serve(ctx, conn)
@@ -58,7 +58,7 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 			return netutil.ListenTCPAndServe(ctx, ipv4Localhost, connHandler)
 		}
 	} else if host == "::" {
-		// the Golang will listen both IPv4 & IPv6 when using the empty string for host
+		// It would listen both IPv4 & IPv6 when using the empty string for host.
 		host = ""
 	}
 
@@ -132,10 +132,10 @@ func parRunWithFirstErrReturn(cancel context.CancelFunc, f1 func() error, f2 fun
 	}()
 
 	err := <-ch
-	// stop the sibling listener so it doesn't keep its socket bound and its
-	// goroutine running after the first one has returned
+	// Stop the sibling listener so it doesn't keep its socket bound and its
+	// goroutine running after the first one has returned.
 	cancel()
-	// drain the sibling's result so its goroutine doesn't leak
+	// Drain the sibling's result so its goroutine doesn't leak.
 	<-ch
 	return err
 }
