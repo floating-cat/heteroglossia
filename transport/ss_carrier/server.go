@@ -26,7 +26,7 @@ var _ transport.Server = (*server)(nil)
 func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
 	return &server{
 		netutil.JoinHostPort(hg.Host, *hg.TCPPort),
-		hg.Password.Raw[:],
+		toShadowsocksSharedKey(hg.Password),
 		gcmTagOverhead,
 		newSaltPool[string](),
 		targetClient,

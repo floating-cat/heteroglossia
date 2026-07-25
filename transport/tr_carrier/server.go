@@ -37,7 +37,7 @@ func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
 	return &server{
 		host: hg.Host, port: hg.TLSPort,
 		tlsCertKeyPair: hg.TLSCertKeyPair, tlsBadAuthFallbackSiteDir: hg.TLSBadAuthFallbackSiteDir,
-		passwordHash: toTrojanPasswordHash(hg.Password.String),
+		passwordHash: toTrojanPasswordHash(hg.Password),
 		targetClient: targetClient,
 	}
 }

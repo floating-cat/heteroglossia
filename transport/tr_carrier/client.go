@@ -26,7 +26,7 @@ func NewClient(proxyNode *conf.ProxyNode, tlsKeyLog bool) (transport.Client, err
 	}
 	return &client{
 		serverHostWithPort: netutil.JoinHostPort(proxyNode.Host, proxyNode.TLSPort),
-		passwordHash:       toTrojanPasswordHash(proxyNode.Password.String),
+		passwordHash:       toTrojanPasswordHash(proxyNode.Password),
 		tlsConfig:          tlsConfig,
 	}, nil
 }

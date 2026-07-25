@@ -44,7 +44,7 @@ func (httpSOCKS *HTTPSOCKS) ToHTTPSOCKSAuthInfo() *HTTPSOCKSAuthInfo {
 
 type Hg struct {
 	Host                      string          `json:"host"`
-	Password                  HexPassword     `json:"password"`
+	Password                  *Password       `json:"password"`
 	TCPPort                   *uint16         `json:"tcp-port"`
 	TLSPort                   uint16          `json:"tls-port"`
 	TLSCertKeyPair            *TLSCertKeyPair `json:"tls-cert-key-pair"`
@@ -61,20 +61,17 @@ func (hg *Hg) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 }
 
 type ProxyNode struct {
-	Host              string      `json:"host"`
-	Password          HexPassword `json:"password"`
-	TCPPort           *uint16     `json:"tcp-port"`
-	TLSPort           uint16      `json:"tls-port"`
-	TLSCustomCertFile string      `json:"tls-cert"`
-	QUICPort          uint16      `json:"quic-port"`
+	Host              string    `json:"host"`
+	Password          *Password `json:"password"`
+	TCPPort           *uint16   `json:"tcp-port"`
+	TLSPort           uint16    `json:"tls-port"`
+	TLSCustomCertFile string    `json:"tls-cert"`
+	QUICPort          uint16    `json:"quic-port"`
 }
 
-type HexPassword struct {
-	Raw    [16]byte
-	String string
-}
+type Password [16]byte
 
-func (pw *HexPassword) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+func (pw *Password) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	var pwStr string
 	err := json.UnmarshalDecode(dec, &pwStr)
 	if err != nil {
@@ -83,10 +80,10 @@ func (pw *HexPassword) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 
 	bs, err := hex.DecodeString(pwStr)
 	if err != nil || len(bs) != 16 {
-		return errors.New("the password must be 32 hex characters in length")
+		return errors.New("the password must be 32 hex characters in length", err)
 	}
-	pw.Raw = [16]byte(bs)
-	pw.String = pwStr
+	*pw = [16]byte(bs)
+
 	return nil
 }
 

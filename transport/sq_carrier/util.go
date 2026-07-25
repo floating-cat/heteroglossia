@@ -1,19 +1,21 @@
 package sq_carrier
 
 import (
-	"crypto/hkdf"
 	"crypto/sha256"
 	"encoding/hex"
 
+	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/util/ioutil"
 	"github.com/floating-cat/heteroglossia/util/log"
+	"github.com/floating-cat/heteroglossia/util/passwordutil"
 	"github.com/quic-go/quic-go"
 )
 
-func toSunnyQUICAuthHash(password string) [64]byte {
+func toSunnyQUICAuthHash(password *conf.Password) [64]byte {
 	var key [64]byte
 	hash := sha256.New()
-	err := ioutil.Write_(hash, []byte("hg:"+password))
+	derived := passwordutil.DeriveBase64(password[:], "hg/sunnyquic/auth-password/v1")
+	err := ioutil.Write_(hash, []byte("hg:"+derived))
 	if err != nil {
 		log.Fatal("unexpected code path", err)
 	}
@@ -27,12 +29,9 @@ func toSunnyQUICAuthHash(password string) [64]byte {
 // persisting extra state, while a dedicated HKDF info string keeps it separate
 // from the authentication hash.
 // https://quic-go.net/docs/quic/transport/#stateless-reset
-func toStatelessResetKey(password string) *quic.StatelessResetKey {
+func toStatelessResetKey(password *conf.Password) *quic.StatelessResetKey {
 	var key = new(quic.StatelessResetKey)
-	derived, err := hkdf.Key(sha256.New, []byte(password), nil, "hg:sunnyquic:stateless-reset-key", len(key))
-	if err != nil {
-		log.Fatal("unexpected code path", err)
-	}
+	derived := passwordutil.DeriveN(password[:], "hg/sunnyquic/quic-stateless-reset-key/v1", len(key))
 	copy(key[:], derived)
 	return key
 }

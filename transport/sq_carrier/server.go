@@ -26,8 +26,8 @@ func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
 		host:              hg.Host,
 		port:              hg.QUICPort,
 		tlsCertKeyPair:    hg.TLSCertKeyPair,
-		authHash:          toSunnyQUICAuthHash(hg.Password.String),
-		statelessResetKey: toStatelessResetKey(hg.Password.String),
+		authHash:          toSunnyQUICAuthHash(hg.Password),
+		statelessResetKey: toStatelessResetKey(hg.Password),
 		targetClient:      targetClient,
 	}
 }

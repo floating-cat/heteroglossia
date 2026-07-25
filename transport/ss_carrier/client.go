@@ -25,7 +25,7 @@ var _ transport.Client = (*client)(nil)
 func NewClient(proxyNode *conf.ProxyNode) transport.Client {
 	return &client{
 		netutil.JoinHostPort(proxyNode.Host, *proxyNode.TCPPort),
-		proxyNode.Password.Raw[:],
+		toShadowsocksSharedKey(proxyNode.Password),
 		gcmTagOverhead,
 		randutil.WeightedIntN(2),
 	}

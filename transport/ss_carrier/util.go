@@ -6,17 +6,23 @@ import (
 	"encoding/binary"
 	"time"
 
+	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/util/errors"
+	"github.com/floating-cat/heteroglossia/util/passwordutil"
 	"github.com/floating-cat/heteroglossia/util/randutil"
 	"lukechampine.com/blake3"
 )
+
+const gcmTagOverhead = 16
+
+func toShadowsocksSharedKey(password *conf.Password) []byte {
+	return passwordutil.Derive(password[:], "hg/shadowsocks/auth-shared-key/v1")
+}
 
 func generateSalt(preSharedKey []byte) []byte {
 	saltSize := len(preSharedKey)
 	return randutil.RandNBytes(saltSize)
 }
-
-const gcmTagOverhead = 16
 
 func aeadCipher(psk, salt []byte) (cipher.AEAD, error) {
 	subkey := deriveSubkey(psk, salt)

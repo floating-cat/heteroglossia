@@ -52,12 +52,6 @@ func validate(config *Config) error {
 		return govy.NewRuleError("must be a valid IP address or a hostname that follows RFC 1123", "host")
 	})
 	var portRules = govy.NewRuleSet(rules.GTE[uint16](1), rules.LTE[uint16](65535))
-	var hexPasswordValidator = govy.New(
-		govy.For(func(p HexPassword) string { return p.String }).
-			WithName("password").
-			HideValue().
-			Required(),
-	)
 
 	var httpSOCKSValidator = govy.New(
 		govy.For(func(h HTTPSOCKS) string { return h.Host }).
@@ -74,9 +68,9 @@ func validate(config *Config) error {
 			WithName("host").
 			Required().
 			Rules(hostRule),
-		govy.For(func(h Hg) HexPassword { return h.Password }).
+		govy.ForPointer(func(h Hg) *Password { return h.Password }).
 			WithName("password").
-			Include(hexPasswordValidator),
+			Required(),
 		govy.ForPointer(func(h Hg) *uint16 { return h.TCPPort }).
 			WithName("tcp-port").
 			Rules(portRules),
@@ -110,9 +104,9 @@ func validate(config *Config) error {
 			WithName("host").
 			Required().
 			Rules(hostRule),
-		govy.For(func(n *ProxyNode) HexPassword { return n.Password }).
+		govy.ForPointer(func(n *ProxyNode) *Password { return n.Password }).
 			WithName("password").
-			Include(hexPasswordValidator),
+			Required(),
 		govy.ForPointer(func(n *ProxyNode) *uint16 { return n.TCPPort }).
 			WithName("tcp-port").
 			Rules(portRules),

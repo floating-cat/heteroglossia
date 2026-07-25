@@ -39,7 +39,7 @@ func NewClient(proxyNode *conf.ProxyNode, tlsKeyLog bool) (transport.Client, err
 	return &client{
 		serverHostWithPort: netutil.JoinHostPort(proxyNode.Host, proxyNode.QUICPort),
 		tlsConfig:          tlsConfig,
-		authHash:           toSunnyQUICAuthHash(proxyNode.Password.String),
+		authHash:           toSunnyQUICAuthHash(proxyNode.Password),
 	}, nil
 }
 
