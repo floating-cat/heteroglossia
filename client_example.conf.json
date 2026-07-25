@@ -32,8 +32,8 @@
     "rules": [
       {
         "match": [
-          "domain-tag/private",
-          "ip-set-tag/private"
+          "domain-full/example.org",
+          "domain-suffix/example.net"
         ],
         "policy": "direct"
       },
@@ -52,8 +52,8 @@
       },
       {
         "match": [
-          "domain-full/example.org",
-          "domain-suffix/example.net"
+          "domain-tag/private",
+          "ip-set-tag/private"
         ],
         "policy": "node1"
       }

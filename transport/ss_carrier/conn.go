@@ -466,7 +466,17 @@ func (c *conn) ReadFrom(r io.Reader) (n int64, err error) {
 
 	if !c.hasWriteFirstPayload {
 		c.hasWriteFirstPayload = true
-		count, err := r.Read(maxPayloadReadBs)
+		// The initial payload is carried inside the first variable-length header chunk,
+		// including the request address and padding-length field on the ss client side.
+		// Therefore, we need to subtract these when reading the payload from the request side.
+		// request payload -> ss client -> ss server
+		var maxFirstPayloadSize int
+		if c.isClient {
+			maxFirstPayloadSize = maxChunkSize - socks.SOCKSLikeAddrSizeInBytes(c.accessAddr) - lenFieldSize
+		} else {
+			maxFirstPayloadSize = maxChunkSize
+		}
+		count, err := r.Read(maxPayloadReadBs[:maxFirstPayloadSize])
 		n += int64(count)
 		if err != nil && !errors.IsIoEof(err) {
 			return n, err
