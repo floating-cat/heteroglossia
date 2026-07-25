@@ -96,6 +96,12 @@ func (c *serverQUICConn) handleStreams(conn *quic.Conn) {
 	case <-c.ctx.Done():
 		return
 	case <-c.authDone: // for server, it should block any commands until authentication is finished
+		select {
+		case <-conn.Context().Done():
+			// connection closed before handshake completion, e.g. due to handshake failure
+			return
+		case <-conn.HandshakeComplete():
+		}
 	}
 
 	for {

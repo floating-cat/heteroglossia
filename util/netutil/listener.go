@@ -98,7 +98,7 @@ func ListenTLSAndAccept(ctx context.Context, addr string, tlsConfig *tls.Config,
 	}, nil)
 }
 
-func ListenQUICAndServe(ctx context.Context, addr string, tlsConf *tls.Config,
+func ListenQUICEarlyAndServe(ctx context.Context, addr string, tlsConf *tls.Config,
 	statelessResetKey *quic.StatelessResetKey, connHandler func(quicConn *quic.Conn)) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -113,7 +113,8 @@ func ListenQUICAndServe(ctx context.Context, addr string, tlsConf *tls.Config,
 	// Transport.Close closes the underlying packet connection, so we don't close
 	// conn separately once the transport owns it.
 	tr := &quic.Transport{Conn: conn, StatelessResetKey: statelessResetKey}
-	ln, err := tr.Listen(tlsConf, newQUICConfig())
+	// https://quic-go.net/docs/quic/server/#0-rtt
+	ln, err := tr.ListenEarly(tlsConf, newQUICConfig())
 	if err != nil {
 		_ = tr.Close()
 		return errors.WithStack(err)

@@ -34,7 +34,7 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 	}
 
 	hostWithPort := netutil.JoinHostPort(s.host, s.port)
-	return netutil.ListenQUICAndServe(ctx, hostWithPort, tlsConfig, s.statelessResetKey, func(quicConn *quic.Conn) {
+	return netutil.ListenQUICEarlyAndServe(ctx, hostWithPort, tlsConfig, s.statelessResetKey, func(quicConn *quic.Conn) {
 		connCtx := contextutil.WithSourceAndInboundValues(ctx, quicConn.RemoteAddr().String(), "SunnyQUIC carrier")
 		s.Serve(connCtx, quicConn)
 	})

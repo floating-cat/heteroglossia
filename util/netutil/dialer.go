@@ -36,8 +36,9 @@ func DialTLS(ctx context.Context, addr string, tlsConfig *tls.Config) (*tls.Conn
 	return tls.Client(conn, tlsConfig), nil
 }
 
-func DialQUIC(ctx context.Context, addr string, tlsConf *tls.Config) (*quic.Conn, error) {
-	return errors.WithStack2(quic.DialAddr(ctx, addr, tlsConf, newQUICConfig()))
+// https://quic-go.net/docs/quic/client/#0-rtt
+func DialQUICEarly(ctx context.Context, addr string, tlsConf *tls.Config) (*quic.Conn, error) {
+	return errors.WithStack2(quic.DialAddrEarly(ctx, addr, tlsConf, newQUICConfig()))
 }
 
 // newQUICConfig can't be reused
@@ -51,5 +52,6 @@ func newQUICConfig() *quic.Config {
 		MaxStreamReceiveWindow:         12 * (1 << 20), // 12 MB
 		InitialConnectionReceiveWindow: 1 * (1 << 20),  // 1 MB
 		MaxConnectionReceiveWindow:     30 * (1 << 20), // 30 MB
+		Allow0RTT:                      true,
 	}
 }
