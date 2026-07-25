@@ -34,10 +34,12 @@ type server struct {
 var _ transport.Server = (*server)(nil)
 
 func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
-	return &server{host: hg.Host, port: hg.TLSPort,
+	return &server{
+		host: hg.Host, port: hg.TLSPort,
 		tlsCertKeyPair: hg.TLSCertKeyPair, tlsBadAuthFallbackSiteDir: hg.TLSBadAuthFallbackSiteDir,
 		passwordHash: toTrojanPasswordHash(hg.Password.String),
-		targetClient: targetClient}
+		targetClient: targetClient,
+	}
 }
 
 func (s *server) ListenAndServe(ctx context.Context) error {

@@ -24,8 +24,13 @@ type server struct {
 var _ transport.Server = (*server)(nil)
 
 func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
-	hostWithPort := netutil.JoinHostPort(hg.Host, *hg.TCPPort)
-	return &server{hostWithPort, hg.Password.Raw[:], gcmTagOverhead, newSaltPool[string](), targetClient}
+	return &server{
+		netutil.JoinHostPort(hg.Host, *hg.TCPPort),
+		hg.Password.Raw[:],
+		gcmTagOverhead,
+		newSaltPool[string](),
+		targetClient,
+	}
 }
 
 func (s *server) ListenAndServe(ctx context.Context) error {

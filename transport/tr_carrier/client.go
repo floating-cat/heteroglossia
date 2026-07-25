@@ -20,14 +20,15 @@ type client struct {
 var _ transport.Client = (*client)(nil)
 
 func NewClient(proxyNode *conf.ProxyNode, tlsKeyLog bool) (transport.Client, error) {
-	clientHandler := &client{serverHostWithPort: netutil.JoinHostPort(proxyNode.Host, proxyNode.TLSPort)}
-	clientHandler.passwordHash = toTrojanPasswordHash(proxyNode.Password.String)
 	tlsConfig, err := netutil.TLSClientConfig(proxyNode.Host, proxyNode.TLSCustomCertFile, tlsKeyLog, false)
 	if err != nil {
 		return nil, err
 	}
-	clientHandler.tlsConfig = tlsConfig
-	return clientHandler, nil
+	return &client{
+		serverHostWithPort: netutil.JoinHostPort(proxyNode.Host, proxyNode.TLSPort),
+		passwordHash:       toTrojanPasswordHash(proxyNode.Password.String),
+		tlsConfig:          tlsConfig,
+	}, nil
 }
 
 func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (net.Conn, error) {

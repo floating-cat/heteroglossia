@@ -22,9 +22,14 @@ type server struct {
 var _ transport.Server = (*server)(nil)
 
 func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
-	return &server{host: hg.Host, port: hg.QUICPort, tlsCertKeyPair: hg.TLSCertKeyPair,
-		authHash: toSunnyQUICAuthHash(hg.Password.String), statelessResetKey: toStatelessResetKey(hg.Password.String),
-		targetClient: targetClient}
+	return &server{
+		host:              hg.Host,
+		port:              hg.QUICPort,
+		tlsCertKeyPair:    hg.TLSCertKeyPair,
+		authHash:          toSunnyQUICAuthHash(hg.Password.String),
+		statelessResetKey: toStatelessResetKey(hg.Password.String),
+		targetClient:      targetClient,
+	}
 }
 
 func (s *server) ListenAndServe(ctx context.Context) error {
