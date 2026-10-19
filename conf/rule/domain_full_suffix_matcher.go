@@ -1,6 +1,7 @@
 package rule
 
 import (
+	"slices"
 	"strings"
 )
 
@@ -72,8 +73,7 @@ func (matcher domainFullAndSuffixMatcher) match(domain string) bool {
 	segments := strings.Split(strings.ToLower(domain), ".")
 	loopedDomainMatcher := matcher
 	var loopedSegment *domainSegments
-	for i := len(segments) - 1; i >= 0; i-- {
-		segment := segments[i]
+	for _, segment := range slices.Backward(segments) {
 		nextSegment, ok := loopedDomainMatcher[segment]
 		if !ok {
 			return false

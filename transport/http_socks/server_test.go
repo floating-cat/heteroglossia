@@ -119,6 +119,10 @@ func startClient(proxyServerAddrWithPort, webServerAddrWithPort string, authInfo
 	cmd := fmt.Sprintf("curl --fail --proxy %v %v %v",
 		proxyServerAddrWithPort, proxyUser, webServerAddrWithPort)
 	args := strings.Fields(cmd)
+	// Some agent sandboxes set NO_PROXY=127.0.0.1, so pass an empty --noproxy
+	// to override it. Append it separately since strings.Fields can't produce
+	// an empty argument.
+	args = append(args, "--noproxy", "")
 	_, err := exec.Command(args[0], args[1:]...).CombinedOutput()
 	return err
 }

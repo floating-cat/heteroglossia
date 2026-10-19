@@ -107,7 +107,7 @@ func (c *conn) writeClientFirstPayload(payload []byte) error {
 	payloadSize := len(payload)
 	var paddingSize, reqPaddingAndPayloadSize int
 	if payloadSize <= 0 {
-		paddingSize = rand.IntN(maxPaddingSize + 1)
+		paddingSize = rand.N(maxPaddingSize + 1)
 		reqPaddingAndPayloadSize = paddingSize
 	} else {
 		paddingSize = 0
@@ -245,7 +245,7 @@ func (c *conn) readOrWriteTo(b []byte, w io.Writer) (n int, err error) {
 		}
 	}
 
-	// Response stream chunk
+	// Stream chunk
 	// +------------------------+---------------------------+
 	// | encrypted length chunk |  encrypted payload chunk  |
 	// +------------------------+---------------------------+
@@ -261,21 +261,7 @@ func (c *conn) readOrWriteTo(b []byte, w io.Writer) (n int, err error) {
 		return 0, err
 	}
 	payloadSize := int(binary.BigEndian.Uint16(payloadLenEncryptedBs))
-
-	payloadEncryptedBs := pool.Get(payloadSize + c.aeadOverhead)
-	defer pool.Put(payloadEncryptedBs)
-	_, err = ioutil.ReadFull(c.TCPConn, payloadEncryptedBs)
-	if err != nil {
-		return 0, err
-	}
-	err = c.decryptInPlace(payloadEncryptedBs)
-	if err != nil {
-		return 0, err
-	}
-	if w != nil {
-		return ioutil.Write(w, payloadEncryptedBs[:payloadSize])
-	}
-	return c.copyReadPayload(b, payloadEncryptedBs[:payloadSize])
+	return c.copyReadPayloadEncrypted(b, w, payloadSize)
 }
 
 func (c *conn) readServerFirstPayload(b []byte, w io.Writer) (int, error) {
@@ -302,21 +288,7 @@ func (c *conn) readServerFirstPayload(b []byte, w io.Writer) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-
-	respPayloadEncryptedBs := pool.Get(respPayloadSize + c.aeadOverhead)
-	defer pool.Put(respPayloadEncryptedBs)
-	_, err = ioutil.ReadFull(c.TCPConn, respPayloadEncryptedBs)
-	if err != nil {
-		return 0, err
-	}
-	err = c.decryptInPlace(respPayloadEncryptedBs)
-	if err != nil {
-		return 0, err
-	}
-	if w != nil {
-		return ioutil.Write(w, respPayloadEncryptedBs[:respPayloadSize])
-	}
-	return c.copyReadPayload(b, respPayloadEncryptedBs[:respPayloadSize])
+	return c.copyReadPayloadEncrypted(b, w, respPayloadSize)
 }
 
 func (c *conn) readClientFirstPayload() error {
@@ -401,6 +373,23 @@ func (c *conn) readClientFirstPayload() error {
 	}
 	_, err = c.copyReadPayload([]byte{}, reqVarLenHeaderReader.Bytes()[paddingLen:])
 	return err
+}
+
+func (c *conn) copyReadPayloadEncrypted(b []byte, w io.Writer, payloadSize int) (int, error) {
+	payloadEncryptedBs := pool.Get(payloadSize + c.aeadOverhead)
+	defer pool.Put(payloadEncryptedBs)
+	_, err := ioutil.ReadFull(c.TCPConn, payloadEncryptedBs)
+	if err != nil {
+		return 0, err
+	}
+	err = c.decryptInPlace(payloadEncryptedBs)
+	if err != nil {
+		return 0, err
+	}
+	if w != nil {
+		return ioutil.Write(w, payloadEncryptedBs[:payloadSize])
+	}
+	return c.copyReadPayload(b, payloadEncryptedBs[:payloadSize])
 }
 
 func (c *conn) copyReadPayload(b []byte, payloadBs []byte) (int, error) {

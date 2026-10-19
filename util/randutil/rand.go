@@ -28,7 +28,7 @@ func WeightedIntN(n int) func() int {
 
 	return func() int {
 		if totalWeight == 0.0 {
-			return mathRand.IntN(n)
+			return mathRand.N(n)
 		}
 		r := mathRand.Float32() * totalWeight
 		for i := range n {

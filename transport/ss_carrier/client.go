@@ -49,12 +49,12 @@ func (c *client) customFirstReqPrefixes(bs []byte) {
 	case 0:
 		// Ex2 exemption
 		for i := range 6 {
-			bs[i] = byte(rand.IntN(0x7e-0x20+1) + 0x20)
+			bs[i] = byte(rand.N(0x7e-0x20+1) + 0x20)
 		}
 	case 1:
 		// Ex5 exemption
 		pattern := [6]string{"GET ", "HEAD ", "POST ", "PUT ", "\x16\x03\x02", "\x16\x03\x03"}
-		copy(bs, pattern[rand.IntN(6)])
+		copy(bs, pattern[rand.N(6)])
 	default:
 		panic("unreachable code line")
 	}
