@@ -132,6 +132,7 @@ func (matcher *Matcher) SetupRulesData(rulesQueryStore *DomainIPSetRulesQuerySto
 }
 
 func (matcher *Matcher) MatchDomain(domain string) bool {
+	domain = trimDomainRootDot(domain)
 	if matcher.domainFullAndSuffixMatcher.match(domain) {
 		return true
 	}

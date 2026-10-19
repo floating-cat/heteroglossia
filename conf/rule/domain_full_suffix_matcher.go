@@ -34,7 +34,7 @@ func (matcher domainFullAndSuffixMatcher) addDomainSuffixRule(domain string) {
 
 func (matcher domainFullAndSuffixMatcher) addDomainFullOrSuffixRule(domain string, matchType match) {
 	// domain URLs are case-insensitive
-	segments := strings.Split(strings.ToLower(domain), ".")
+	segments := strings.Split(strings.ToLower(trimDomainRootDot(domain)), ".")
 	loopedDomainMatcher := matcher
 	for i := len(segments) - 1; i >= 1; i-- {
 		segment := segments[i]
@@ -89,4 +89,10 @@ func (matcher domainFullAndSuffixMatcher) match(domain string) bool {
 		panic("domain can't be empty")
 	}
 	return loopedSegment.match == full
+}
+
+// A fully qualified domain name may end with a dot for the DNS root (e.g.,
+// "example.com."), which should be treated the same as "example.com"
+func trimDomainRootDot(domain string) string {
+	return strings.TrimSuffix(domain, ".")
 }
