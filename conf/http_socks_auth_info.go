@@ -1,5 +1,7 @@
 package conf
 
+import "crypto/subtle"
+
 type HTTPSOCKSAuthInfo struct {
 	Username string
 	Password string
@@ -10,9 +12,11 @@ func (authInfo *HTTPSOCKSAuthInfo) IsEmpty() bool {
 }
 
 func (authInfo *HTTPSOCKSAuthInfo) NotEqual(anotherAuthInfo *HTTPSOCKSAuthInfo) bool {
-	return !(authInfo.Username == anotherAuthInfo.Username && authInfo.Password == anotherAuthInfo.Password)
+	return authInfo.NotEqual2(anotherAuthInfo.Username, anotherAuthInfo.Password)
 }
 
 func (authInfo *HTTPSOCKSAuthInfo) NotEqual2(username, password string) bool {
-	return !(authInfo.Username == username && authInfo.Password == password)
+	usernameEq := subtle.ConstantTimeCompare([]byte(authInfo.Username), []byte(username))
+	passwordEq := subtle.ConstantTimeCompare([]byte(authInfo.Password), []byte(password))
+	return usernameEq != 1 || passwordEq != 1
 }

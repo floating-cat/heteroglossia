@@ -2,6 +2,7 @@ package tr_carrier
 
 import (
 	"context"
+	"crypto/subtle"
 	"crypto/tls"
 	"net"
 	"net/http"
@@ -87,7 +88,7 @@ func (s *server) Serve(ctx context.Context, conn net.Conn) error {
 		return errors.WithStack(err)
 	}
 
-	if len(lineBs) != 56 || [56]byte(lineBs[0:56]) != s.passwordHash {
+	if len(lineBs) != 56 || subtle.ConstantTimeCompare(lineBs, s.passwordHash[:]) != 1 {
 		unreadBufSize := bufReader.Buffered()
 		unreadBs, err := bufReader.Peek(unreadBufSize)
 		if err != nil {

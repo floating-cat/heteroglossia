@@ -1,8 +1,8 @@
 package sq_carrier
 
 import (
-	"bytes"
 	"context"
+	"crypto/subtle"
 	"sync"
 	"time"
 
@@ -82,7 +82,7 @@ func (c *serverQUICConn) handleAuthCommand(stream *quic.ReceiveStream) error {
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(authHashBs, c.authHash[:]) {
+	if subtle.ConstantTimeCompare(authHashBs, c.authHash[:]) != 1 {
 		return errors.New("incorrect auth hash")
 	}
 	c.authOnce.Do(func() {
