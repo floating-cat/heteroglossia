@@ -12,11 +12,10 @@ import (
 func listenEndSignalAndRunHandler() {
 	end := make(chan os.Signal, 1)
 	signal.Notify(end,
-		// https://www.gnu.org/software/libc/manual/html_node/Termination-Signals.html
+		// https://sourceware.org/glibc/manual/latest/html_node/Termination-Signals.html
 		syscall.SIGTERM,
 		syscall.SIGINT,
 		syscall.SIGQUIT,
-		syscall.SIGKILL,
 		syscall.SIGHUP,
 	)
 
