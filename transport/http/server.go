@@ -87,22 +87,24 @@ func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 		return transport.ForwardTCP(ctx, addr, ioutil.NewBytesReadPreloadConn(unreadBs, conn), s.targetClient)
 	}
 
-	lp, rp := net.Pipe()
+	// relayConn reads data from the target server through forwardSrcConn
+	// and sends it back to the client that made the request through the proxy.
+	relayConn, forwardSrcConn := net.Pipe()
 	go func() {
 		buf := pool.Get(ioutil.BufSize)
 		defer pool.Put(buf)
-		lprb := ioutil.NewBufioReader(buf, lp)
+		relayConnBufReader := ioutil.NewBufioReader(buf, relayConn)
 		var rerr, werr error
 		var resp *http.Response
 		for {
 			removeHopByHopHeaders(req.Header)
 
-			werr = req.Write(lp)
+			werr = req.Write(relayConn)
 			if werr != nil {
 				werr = errors.WithStack(werr)
 				break
 			}
-			resp, rerr = http.ReadResponse(lprb, req)
+			resp, rerr = http.ReadResponse(relayConnBufReader, req)
 			if rerr != nil {
 				rerr = errors.WithStack(rerr)
 				break
@@ -133,7 +135,7 @@ func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 			}
 		}
 
-		_ = lp.Close()
+		_ = relayConn.Close()
 		if rerr != nil {
 			log.InfoWithError("fail to read request", rerr)
 		}
@@ -142,7 +144,7 @@ func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 		}
 	}()
 
-	return transport.ForwardTCP(ctx, addr, rp, s.targetClient)
+	return transport.ForwardTCP(ctx, addr, forwardSrcConn, s.targetClient)
 }
 
 func parse(r *http.Request) (username, password string, ok bool) {
