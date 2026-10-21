@@ -42,7 +42,6 @@ type conn struct {
 var _ net.Conn = (*conn)(nil)
 var _ io.ReaderFrom = (*conn)(nil)
 var _ io.WriterTo = (*conn)(nil)
-var _ ioutil.CloseWriter = (*conn)(nil)
 
 func newClientConn(tcpConn *net.TCPConn, accessAddr *transport.SocketAddress,
 	preSharedKey []byte, salt []byte, aeadOverhead int) *conn {
@@ -108,7 +107,11 @@ func (c *conn) writeClientFirstPayload(payload []byte) error {
 	payloadSize := len(payload)
 	var paddingSize, reqPaddingAndPayloadSize int
 	if payloadSize <= 0 {
-		paddingSize = rand.N(maxPaddingSize + 1)
+		// https://github.com/Shadowsocks-NET/shadowsocks-specs/blob/60c3f41461a303ba3d7f8837065294699b1e0526/2022-1-shadowsocks-2022-edition.md#313-detection-prevention
+		// In a request header, either initial payload or padding MUST be
+		// present. When making a request header, if payload is not available,
+		// add non-zero random length padding.
+		paddingSize = rand.N(maxPaddingSize) + 1
 		reqPaddingAndPayloadSize = paddingSize
 	} else {
 		paddingSize = 0
@@ -152,8 +155,10 @@ func (c *conn) writeClientFirstPayload(payload []byte) error {
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	if payloadSize < 0 {
-		_ = randutil.RandBytes(reqVarLenHeaderBs[reqPaddingOrPayloadStart : reqPaddingOrPayloadStart+paddingSize])
+	if payloadSize <= 0 {
+		padding := reqVarLenHeaderBuf.AvailableBuffer()[:paddingSize]
+		_ = randutil.RandBytes(padding)
+		reqVarLenHeaderBuf.Write(padding)
 	} else {
 		reqVarLenHeaderBuf.Write(payload[:payloadSize])
 	}
