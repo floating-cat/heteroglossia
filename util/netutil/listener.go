@@ -110,23 +110,26 @@ func ListenQUICEarlyAndServe(ctx context.Context, addr string, tlsConf *tls.Conf
 		return errors.WithStack(err)
 	}
 
-	// Transport.Close closes the underlying packet connection, so we don't close
-	// conn separately once the transport owns it.
+	// Transport.Close doesn't close a packet connection it didn't create, so we
+	// close conn ourselves to release the UDP port.
 	tr := &quic.Transport{Conn: conn, StatelessResetKey: statelessResetKey}
 	// https://quic-go.net/docs/quic/server/#0-rtt
 	ln, err := tr.ListenEarly(tlsConf, newQUICConfig())
 	if err != nil {
 		_ = tr.Close()
+		_ = conn.Close()
 		return errors.WithStack(err)
 	}
+	closer := &quicServerCloser{conn, tr, ln}
 	go func() {
 		<-ctx.Done()
-		_ = ln.Close()
-		_ = tr.Close()
+		_ = closer.Close()
 	}()
-	addServerListener(ln)
+	// Register the closer rather than ln, so StopAllServerListeners returns
+	// only after the UDP port is released.
+	addServerListener(closer)
 	defer func() {
-		removeServerListener(ln)
+		removeServerListener(closer)
 	}()
 
 	for {
@@ -140,6 +143,18 @@ func ListenQUICEarlyAndServe(ctx context.Context, addr string, tlsConf *tls.Conf
 
 		go connHandler(conn)
 	}
+}
+
+type quicServerCloser struct {
+	conn net.PacketConn
+	tr   *quic.Transport
+	ln   *quic.EarlyListener
+}
+
+func (c *quicServerCloser) Close() error {
+	_ = c.ln.Close()
+	_ = c.tr.Close()
+	return c.conn.Close()
 }
 
 func StopAllServerListeners() {
