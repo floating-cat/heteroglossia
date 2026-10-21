@@ -56,15 +56,15 @@ func (c *bytesReadPreloadConn) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func (c *bytesReadPreloadConn) WriteTo(w io.Writer) (n int64, err error) {
-	var count int
-	if c.preloadBs != nil {
-		count, err = c.readPreloadData(nil, w)
+	if len(c.preloadBs) > 0 {
+		count, err := c.readPreloadData(nil, w)
+		n = int64(count)
 		if err != nil {
-			return int64(count), err
+			return n, err
 		}
 	}
-	n, err = io.Copy(w, c.Conn)
-	return n + int64(count), err
+	count, err := io.Copy(w, c.Conn)
+	return n + count, err
 }
 
 func (c *bytesReadPreloadConn) CloseWrite() error {
