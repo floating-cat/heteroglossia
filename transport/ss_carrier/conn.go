@@ -494,19 +494,26 @@ func (c *conn) ReadFrom(r io.Reader) (n int64, err error) {
 	for {
 		count, err := r.Read(maxPayloadReadBs[payloadStart : payloadStart+maxChunkSize])
 		n += int64(count)
+		// Write the bytes before checking err, since a reader may return its
+		// last bytes together with io.EOF.
+		if count > 0 {
+			binary.BigEndian.PutUint16(maxPayloadReadBs, uint16(count))
+			c.encryptInPlace(maxPayloadReadBs[:lenFieldSize])
+			c.encryptInPlace(maxPayloadReadBs[payloadStart : payloadStart+count])
+
+			_, werr := c.TCPConn.Write(maxPayloadReadBs[:payloadStart+count+c.aeadOverhead])
+			if werr != nil {
+				if errors.IsIoEof(err) {
+					err = nil
+				}
+				return n, errors.Append(err, werr)
+			}
+		}
 		if err != nil {
 			if errors.IsIoEof(err) {
 				return n, nil
 			}
 			return n, errors.WithStack(err)
-		}
-		binary.BigEndian.PutUint16(maxPayloadReadBs, uint16(count))
-		c.encryptInPlace(maxPayloadReadBs[:lenFieldSize])
-		c.encryptInPlace(maxPayloadReadBs[payloadStart : payloadStart+count])
-
-		_, err = c.TCPConn.Write(maxPayloadReadBs[:payloadStart+count+c.aeadOverhead])
-		if err != nil {
-			return n, err
 		}
 	}
 }
