@@ -3,16 +3,16 @@
     "hg": {
       "host": "0.0.0.0",
       "password": "66cac28e26cd4d6faf944821c702fadb",
-      "tcp-port": 2081,
-      "tls-port": 2082,
+      "tcp-port": 51081,
+      "tls-port": 51082,
       "tls-cert-key-pair": "misc/tls_test_cert.pem misc/tls_test_key.pem",
       "tls-bad-auth-fallback-site-dir": "misc/site",
-      "quic-port": 2083
+      "quic-port": 51083
     }
   },
   "misc": {
     "profiling": true,
-    "profiling-port": 6062,
+    "profiling-port": 56062,
     "verbose-log": true
   }
 }
