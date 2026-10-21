@@ -49,9 +49,8 @@ func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 	}
 
 	isHTTPConnect := req.Method == http.MethodConnect
-	var addr *transport.SocketAddress
+	var targetAddr *transport.SocketAddress
 	if isHTTPConnect {
-		// https://datatracker.ietf.org/doc/html/rfc9110#name-connect
 		// There is no default port; a client MUST send the port number
 		// even if the CONNECT request is based on a URI reference that
 		// contains an authority component with an elided port. For example
@@ -60,18 +59,22 @@ func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 		// A server MUST reject a CONNECT request that targets an empty
 		// or invalid port number, typically by responding with a 400
 		// (Bad Request) status code.
-		addr, err = transport.ToSocketAddr(req.URL.Host, true, 0)
+		// https://datatracker.ietf.org/doc/html/rfc9110#name-connect
+		// A proxy that supports CONNECT establishes a TCP connection to the
+		// host and port identified in the ":authority" pseudo-header field.
+		// https://www.rfc-editor.org/rfc/rfc9113.html#section-8.5
+		targetAddr, err = transport.ToSocketAddr(req.URL.Host, true, 0)
 	} else {
-		addr, err = transport.ToSocketAddr(req.Host, false, 80)
+		targetAddr, err = transport.ToSocketAddr(req.Host, false, 80)
 	}
 	if err != nil {
-		return errors.Append(err, httpError(req, conn, http.StatusBadRequest))
+		return errors.Append(err, httpError(conn, http.StatusBadRequest, nil))
 	}
 	if !s.authInfo.IsEmpty() {
 		username, password, ok := parse(req)
 		if !ok || s.authInfo.NotEqual2(username, password) {
 			return errors.Append(errors.New("no authentication info, or incorrect username/password"),
-				httpError(req, conn, http.StatusProxyAuthRequired))
+				httpError(conn, http.StatusProxyAuthRequired, http.Header{"Proxy-Authenticate": {"Basic"}}))
 		}
 	}
 	if isHTTPConnect {
@@ -84,7 +87,7 @@ func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 		if err != nil {
 			return errors.WithStack(err)
 		}
-		return transport.ForwardTCP(ctx, addr, ioutil.NewBytesReadPreloadConn(unreadBs, conn), s.targetClient)
+		return transport.ForwardTCP(ctx, targetAddr, ioutil.NewBytesReadPreloadConn(unreadBs, conn), s.targetClient)
 	}
 
 	// relayConn reads data from the target server through forwardSrcConn
@@ -144,7 +147,7 @@ func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 		}
 	}()
 
-	return transport.ForwardTCP(ctx, addr, forwardSrcConn, s.targetClient)
+	return transport.ForwardTCP(ctx, targetAddr, forwardSrcConn, s.targetClient)
 }
 
 func parse(r *http.Request) (username, password string, ok bool) {
@@ -170,12 +173,13 @@ func removeHopByHopHeaders(header http.Header) {
 	delete(header, "Upgrade")
 }
 
-func httpError(req *http.Request, w io.Writer, statusCode int) error {
+func httpError(w io.Writer, statusCode int, header http.Header) error {
 	resp := http.Response{
 		StatusCode: statusCode,
-		Status:     http.StatusText(statusCode),
-		ProtoMajor: req.ProtoMajor,
-		ProtoMinor: req.ProtoMinor,
+		ProtoMajor: 1,
+		ProtoMinor: 1,
+		Header:     header,
+		Close:      true,
 	}
 	return errors.WithStack(resp.Write(w))
 }
