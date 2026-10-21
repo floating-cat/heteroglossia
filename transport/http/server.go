@@ -54,11 +54,13 @@ func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 		// https://datatracker.ietf.org/doc/html/rfc9110#name-connect
 		// There is no default port; a client MUST send the port number
 		// even if the CONNECT request is based on a URI reference that
-		// contains an authority component with an elided port.
+		// contains an authority component with an elided port. For example
+		// CONNECT server.example.com:80 HTTP/1.1
+		// Host: server.example.com
 		// A server MUST reject a CONNECT request that targets an empty
 		// or invalid port number, typically by responding with a 400
 		// (Bad Request) status code.
-		addr, err = transport.ToSocketAddr(req.Host, true, 0)
+		addr, err = transport.ToSocketAddr(req.URL.Host, true, 0)
 	} else {
 		addr, err = transport.ToSocketAddr(req.Host, false, 80)
 	}
