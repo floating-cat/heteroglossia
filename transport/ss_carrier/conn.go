@@ -42,6 +42,7 @@ type conn struct {
 var _ net.Conn = (*conn)(nil)
 var _ io.ReaderFrom = (*conn)(nil)
 var _ io.WriterTo = (*conn)(nil)
+var _ ioutil.CloseWriter = (*conn)(nil)
 
 func newClientConn(tcpConn *net.TCPConn, accessAddr *transport.SocketAddress,
 	preSharedKey []byte, salt []byte, aeadOverhead int) *conn {

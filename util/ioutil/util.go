@@ -74,14 +74,10 @@ func Write_(w io.Writer, response []byte) error {
 }
 
 func Pipe(a, b io.ReadWriteCloser) error {
-	type closeWriter interface{ CloseWrite() error }
 	done := make(chan error, 2)
 	cp := func(dst, src io.ReadWriteCloser) {
 		_, err := io.Copy(dst, src)
-		cw, ok := dst.(closeWriter)
-		if ok {
-			_ = cw.CloseWrite()
-		}
+		_ = CloseWrite(dst)
 		done <- err
 	}
 

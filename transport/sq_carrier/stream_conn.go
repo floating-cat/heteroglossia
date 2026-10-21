@@ -3,6 +3,7 @@ package sq_carrier
 import (
 	"net"
 
+	"github.com/floating-cat/heteroglossia/util/ioutil"
 	"github.com/quic-go/quic-go"
 )
 
@@ -15,6 +16,7 @@ type streamConn struct {
 }
 
 var _ net.Conn = (*streamConn)(nil)
+var _ ioutil.CloseWriter = (*streamConn)(nil)
 
 func newStreamConn(stream *quic.Stream, conn *quic.Conn) *streamConn {
 	return &streamConn{Stream: stream, quicConn: conn}
@@ -28,5 +30,9 @@ func (c *streamConn) RemoteAddr() net.Addr { return c.quicConn.RemoteAddr() }
 // to give net.Conn close semantics and unblock any in-flight Read.
 func (c *streamConn) Close() error {
 	c.Stream.CancelRead(streamConnCloseErrCode)
+	return c.Stream.Close()
+}
+
+func (c *streamConn) CloseWrite() error {
 	return c.Stream.Close()
 }

@@ -13,6 +13,7 @@ type bytesReadPreloadConn struct {
 var _ net.Conn = (*bytesReadPreloadConn)(nil)
 var _ io.ReaderFrom = (*bytesReadPreloadConn)(nil)
 var _ io.WriterTo = (*bytesReadPreloadConn)(nil)
+var _ CloseWriter = (*bytesReadPreloadConn)(nil)
 
 func NewBytesReadPreloadConn(preloadBs []byte, conn net.Conn) net.Conn {
 	if len(preloadBs) > 0 {
@@ -64,4 +65,8 @@ func (c *bytesReadPreloadConn) WriteTo(w io.Writer) (n int64, err error) {
 	}
 	n, err = io.Copy(w, c.Conn)
 	return n + int64(count), err
+}
+
+func (c *bytesReadPreloadConn) CloseWrite() error {
+	return CloseWrite(c.Conn)
 }

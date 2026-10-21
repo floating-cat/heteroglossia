@@ -22,6 +22,7 @@ type clientConn struct {
 var _ net.Conn = (*clientConn)(nil)
 var _ io.ReaderFrom = (*clientConn)(nil)
 var _ io.WriterTo = (*clientConn)(nil)
+var _ ioutil.CloseWriter = (*clientConn)(nil)
 
 func newClientConn(conn net.Conn, accessAddr *transport.SocketAddress, passwordHash [56]byte) *clientConn {
 	return &clientConn{conn, accessAddr, passwordHash, false}
@@ -89,6 +90,10 @@ func (c *clientConn) ReadFrom(r io.Reader) (n int64, err error) {
 
 func (c *clientConn) WriteTo(w io.Writer) (n int64, err error) {
 	return io.Copy(w, c.Conn)
+}
+
+func (c *clientConn) CloseWrite() error {
+	return ioutil.CloseWrite(c.Conn)
 }
 
 /*
