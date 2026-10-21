@@ -9,7 +9,6 @@ import (
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/netutil"
-	"github.com/floating-cat/heteroglossia/util/randutil"
 )
 
 type client struct {
@@ -28,7 +27,7 @@ func NewClient(proxyNode *conf.ProxyNode) transport.Client {
 		netutil.JoinHostPort(proxyNode.Host, *proxyNode.TCPPort),
 		toShadowsocksSharedKey(proxyNode.Password),
 		gcmTagOverhead,
-		randutil.WeightedIntN(2),
+		weightedIntN(2),
 	}
 }
 
@@ -43,7 +42,6 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 	return newClientConn(targetConn, addr, c.preSharedKey, clientSalt, c.aeadOverhead), nil
 }
 
-// https://gfw.report/publications/usenixsecurity23/en/
 func (c *client) customFirstReqPrefixes(bs []byte) {
 	switch c.exPicker() {
 	case 0:

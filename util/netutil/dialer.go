@@ -36,6 +36,7 @@ func DialTLS(ctx context.Context, addr string, tlsConfig *tls.Config) (*tls.Conn
 	return tls.Client(conn, tlsConfig), nil
 }
 
+// DialQUICEarly dials a QUIC connection with 0-RTT support.
 // https://quic-go.net/docs/quic/client/#0-rtt
 func DialQUICEarly(ctx context.Context, addr string, tlsConf *tls.Config) (*quic.Conn, error) {
 	return errors.WithStack2(quic.DialAddrEarly(ctx, addr, tlsConf, newQUICConfig()))

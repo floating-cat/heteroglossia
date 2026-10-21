@@ -1,9 +1,6 @@
 package randutil
 
-import (
-	"crypto/rand"
-	mathRand "math/rand/v2"
-)
+import "crypto/rand"
 
 func RandNBytes(n int) []byte {
 	bs := make([]byte, n)
@@ -14,29 +11,4 @@ func RandNBytes(n int) []byte {
 func RandBytes(bs []byte) int {
 	n, _ := rand.Read(bs)
 	return n
-}
-
-// forked from https://stackoverflow.com/a/6737362
-
-func WeightedIntN(n int) func() int {
-	weights := make([]float32, n)
-	var totalWeight float32 = 0.0
-	for i := range n {
-		weights[i] = mathRand.Float32()
-		totalWeight += weights[i]
-	}
-
-	return func() int {
-		if totalWeight == 0.0 {
-			return mathRand.N(n)
-		}
-		r := mathRand.Float32() * totalWeight
-		for i := range n {
-			r -= weights[i]
-			if r <= 0.0 {
-				return i
-			}
-		}
-		panic("unreachable code line")
-	}
 }

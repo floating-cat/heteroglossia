@@ -4,6 +4,8 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/binary"
+	"math/rand/v2"
+	"sort"
 	"time"
 
 	"github.com/floating-cat/heteroglossia/conf"
@@ -40,6 +42,23 @@ func deriveSubkey(psk, salt []byte) []byte {
 	key := make([]byte, len(psk))
 	blake3.DeriveKey(key, "shadowsocks 2022 session subkey", keyMaterial)
 	return key
+}
+
+// weighted1ToN returns a function that picks an int in [0, n), where each
+// number has a random chance fixed at creation time. n must be > 0.
+func weightedIntN(n int) func() int {
+	cumulativeWeights := make([]uint64, n)
+	var totalWeight uint64
+	for i := range n {
+		// +1 keeps every weight, and so totalWeight, above 0
+		totalWeight += uint64(rand.Uint32()) + 1
+		cumulativeWeights[i] = totalWeight
+	}
+
+	return func() int {
+		r := rand.N(totalWeight)
+		return sort.Search(n, func(i int) bool { return r < cumulativeWeights[i] })
+	}
 }
 
 const maxAllowedUnixTimeDiffInSecond = 30

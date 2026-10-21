@@ -34,7 +34,7 @@ func UpdateHgBinary(client *http.Client) (bool, string, error) {
 
 	if semver.Compare(latestTagVersion, currentVersion) > 0 {
 		log.Info("start to update to the latest release version of heteroglossia", "version", latestTagVersion)
-		// returns an absolute path
+		// return an absolute path
 		executablePath, err := os.Executable()
 		if err != nil {
 			return false, "", errors.WithStack(err)

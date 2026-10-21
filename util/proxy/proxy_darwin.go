@@ -60,8 +60,8 @@ networksetup -setsocksfirewallproxystate %[1]v off`),
 }
 
 func unsetAuthInfo(proxyHost string) {
-	// see https://apple.stackexchange.com/a/351729
 	// delete the auth info three times for HTTP/HTTPS/SOCKS proxy
+	// https://apple.stackexchange.com/a/351729
 	proxyAuthInfoUnSetCommand := fmt.Sprintf(trimNewLinesForRawStringLiteral(`security delete-internet-password -s %[1]v && 
 security delete-internet-password -s %[1]v && 
 security delete-internet-password -s %[1]v`),

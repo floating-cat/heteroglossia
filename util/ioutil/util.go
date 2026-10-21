@@ -31,10 +31,10 @@ func ReadN(r io.Reader, n int) (int, []byte, error) {
 	return count, bs, errors.WithStack(err)
 }
 
+// ReadOnceExpectFull reads buf with a single Read call and fails if fewer than
+// len(buf) bytes arrive. To process the salt and the fixed-length header,
+// servers and clients MUST make exactly one read call.
 // https://github.com/Shadowsocks-NET/shadowsocks-specs/blob/main/2022-1-shadowsocks-2022-edition.md#313-detection-prevention
-// To process the salt and the fixed-length header, servers and clients
-// MUST make exactly one read call
-
 func ReadOnceExpectFull(r io.Reader, buf []byte) (int, error) {
 	count, err := r.Read(buf)
 	if err == nil && count < len(buf) {

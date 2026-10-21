@@ -25,9 +25,9 @@ func NewServer(authInfo *conf.HTTPSOCKSAuthInfo, targetClient transport.Client) 
 	return &Server{authInfo, targetClient}
 }
 
-// see https://www.mnot.net/blog/2011/07/11/what_proxies_must_do point 1
+// https://www.mnot.net/blog/2011/07/11/what_proxies_must_do
 // point 0: always advise HTTP 1.1
-// point 1: remove Hop-by-hop headers (already done in Go's code net/http.readRequest)
+// point 1: remove Hop-by-hop headers
 // point 3: an absolute URI always override the Host header
 
 var connectSuccessBytes = []byte("HTTP/1.1 200 OK\r\n\r\n")
@@ -36,10 +36,9 @@ func (s *Server) ListenAndServe(context.Context) error {
 	panic("not implemented")
 }
 
-// forked from https://github.com/database64128/shadowsocks-go/blob/88c2d63ccd0b022f76902195ceb1559eaf15a3a7/http/server.go
-// Always consider connection persistent and take little care of HTTP
+// Serve always consider connection persistent and take little care of HTTP
 // connection header to make the impl simper.
-
+// forked from https://github.com/database64128/shadowsocks-go/blob/88c2d63ccd0b022f76902195ceb1559eaf15a3a7/http/server.go
 func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 	buf := pool.Get(ioutil.BufSize)
 	defer pool.Put(buf)
