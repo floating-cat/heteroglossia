@@ -223,6 +223,10 @@ func (c *conn) writeServerFirstPayload(payload []byte) error {
 }
 
 func (c *conn) Read(b []byte) (n int, err error) {
+	// Return early otherwise a zero-length read would read the next chunk.
+	if len(b) == 0 {
+		return 0, nil
+	}
 	return c.readOrWriteTo(b, nil)
 }
 
@@ -239,10 +243,8 @@ func (c *conn) readOrWriteTo(b []byte, w io.Writer) (n int, err error) {
 			return n, err
 		}
 		n = copy(b, c.readerBuf)
-		if n > 0 {
-			c.readerBuf = c.readerBuf[n:]
-			return
-		}
+		c.readerBuf = c.readerBuf[n:]
+		return n, nil
 	}
 
 	// Stream chunk
