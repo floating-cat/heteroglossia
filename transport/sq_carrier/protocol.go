@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	// https://github.com/spongebob888/sunnyquic/blob/main/PROTOCOL.pdf
-	tcpConnectCommand byte = 0 // TCP Connect, followed by a SOCKSADDR
+	// https://github.com/spongebob888/shadowquic/blob/main/PROTOCOL.pdf
+	tcpConnectCommand byte = 1 // TCP Connect, followed by a SOCKSADDR
 	authCommand       byte = 5 // SunnyQUIC authentication, followed by AUTH_HASH
 
 	// Use 0 and an empty string for active detection.

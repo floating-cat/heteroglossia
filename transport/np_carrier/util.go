@@ -64,5 +64,5 @@ func generatePaddingHeader(request bool) string {
 
 func basicAuthToken(password []byte) string {
 	derived := passwordutil.DeriveBase64(password, "hg/naiveproxy/auth-password/v1")
-	return base64.StdEncoding.EncodeToString([]byte(basicAuthUsername + ":" + derived))
+	return base64.StdEncoding.EncodeToString([]byte(passwordutil.DefaultUsername + ":" + derived))
 }

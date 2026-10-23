@@ -2,24 +2,17 @@ package sq_carrier
 
 import (
 	"crypto/sha256"
-	"encoding/hex"
 
 	"github.com/floating-cat/heteroglossia/conf"
-	"github.com/floating-cat/heteroglossia/util/ioutil"
-	"github.com/floating-cat/heteroglossia/util/log"
 	"github.com/floating-cat/heteroglossia/util/passwordutil"
 	"github.com/quic-go/quic-go"
 )
 
 func toSunnyQUICAuthHash(password *conf.Password) [64]byte {
 	var key [64]byte
-	hash := sha256.New()
 	derived := passwordutil.DeriveBase64(password[:], "hg/sunnyquic/auth-password/v1")
-	err := ioutil.Write_(hash, []byte("hg:"+derived))
-	if err != nil {
-		log.Fatal("unexpected code path", err)
-	}
-	hex.Encode(key[:], hash.Sum(nil))
+	sum := sha256.Sum256([]byte(passwordutil.DefaultUsername + ":" + derived))
+	copy(key[:], sum[:])
 	return key
 }
 

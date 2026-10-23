@@ -35,76 +35,11 @@ func (c *serverQUICConn) handleAuthTimeout() {
 	case <-c.ctx.Done():
 	case <-c.authDone:
 	case <-time.After(authTimeout):
-		_ = c.Close()
+		_ = c.close()
 	}
-}
-
-func (c *serverQUICConn) handleUniStreams(conn *quic.Conn) {
-	for {
-		stream, err := conn.AcceptUniStream(c.ctx)
-		if err != nil {
-			if !errors.IsNetErrClosedOrContextCanceled(err) {
-				log.InfoWithError("fail to accept a QUIC unidirectional stream", errors.WithStack(err))
-			}
-			return
-		}
-		go func() {
-			err = c.handleUniStream(stream)
-			if err != nil {
-				log.InfoWithError("fail to handle a QUIC unidirectional stream", err)
-			}
-		}()
-	}
-}
-
-func (c *serverQUICConn) handleUniStream(stream *quic.ReceiveStream) error {
-	command, err := ioutil.Read1(stream)
-	if err != nil {
-		return err
-	}
-
-	switch command {
-	case authCommand:
-		err := c.handleAuthCommand(stream)
-		if err != nil {
-			_ = c.Close()
-		}
-		return err
-	default:
-		return errors.Newf("unsupported command type %v", command)
-	}
-}
-
-func (c *serverQUICConn) handleAuthCommand(stream *quic.ReceiveStream) error {
-	authHashBs := pool.Get(len(c.authHash))
-	defer pool.Put(authHashBs)
-	_, err := ioutil.ReadFull(stream, authHashBs)
-	if err != nil {
-		return err
-	}
-	if subtle.ConstantTimeCompare(authHashBs, c.authHash[:]) != 1 {
-		return errors.New("incorrect auth hash")
-	}
-	c.authOnce.Do(func() {
-		close(c.authDone)
-	})
-	return nil
 }
 
 func (c *serverQUICConn) handleStreams(conn *quic.Conn) {
-	select {
-	case <-c.ctx.Done():
-		return
-	case <-c.authDone: // for server, it should block any commands until authentication is finished
-		select {
-		case <-conn.Context().Done():
-			// connection closed before handshake completion, e.g. due to
-			// handshake failure
-			return
-		case <-conn.HandshakeComplete():
-		}
-	}
-
 	for {
 		stream, err := conn.AcceptStream(c.ctx)
 		if err != nil {
@@ -115,6 +50,7 @@ func (c *serverQUICConn) handleStreams(conn *quic.Conn) {
 		}
 		go func() {
 			err = c.handleStream(stream)
+			stream.CancelRead(streamConnCloseErrCode)
 			_ = stream.Close()
 			if err != nil {
 				log.InfoWithError("fail to handle a QUIC stream", err)
@@ -130,10 +66,54 @@ func (c *serverQUICConn) handleStream(stream *quic.Stream) error {
 	}
 
 	switch command {
+	case authCommand:
+		err := c.handleAuthCommand(stream)
+		if err != nil {
+			_ = c.close()
+		}
+		return err
 	case tcpConnectCommand:
+		err := c.waitForAuthAndHandshake()
+		if err != nil {
+			return err
+		}
 		return c.handleTCPConnectCommand(stream)
 	default:
 		return errors.Newf("unsupported command type %v", command)
+	}
+}
+
+func (c *serverQUICConn) handleAuthCommand(stream *quic.Stream) error {
+	authHashBs := pool.Get(len(c.authHash))
+	defer pool.Put(authHashBs)
+	_, err := ioutil.ReadFull(stream, authHashBs)
+	if err != nil {
+		return err
+	}
+	if subtle.ConstantTimeCompare(authHashBs, c.authHash[:]) != 1 {
+		return errors.New("incorrect auth hash")
+	}
+	c.authOnce.Do(func() {
+		close(c.authDone)
+	})
+	return nil
+}
+
+// waitForAuthAndHandshake blocks until the connection is authenticated and,
+// since commands may arrive as 0-RTT data, until the handshake is complete.
+func (c *serverQUICConn) waitForAuthAndHandshake() error {
+	select {
+	case <-c.ctx.Done():
+		return errors.WithStack(c.ctx.Err())
+	case <-c.authDone:
+	}
+	select {
+	case <-c.quicConn.Context().Done():
+		// connection closed before handshake completion, e.g. due to
+		// handshake failure
+		return errors.WithStack(context.Cause(c.quicConn.Context()))
+	case <-c.quicConn.HandshakeComplete():
+		return nil
 	}
 }
 
@@ -145,7 +125,7 @@ func (c *serverQUICConn) handleTCPConnectCommand(stream *quic.Stream) error {
 	return transport.ForwardTCP(c.ctx, accessAddr, newStreamConn(stream, c.quicConn), c.targetClient)
 }
 
-func (c *serverQUICConn) Close() error {
+func (c *serverQUICConn) close() error {
 	c.cancel()
 	return c.quicConn.CloseWithError(connCloseErrCode, connCloseErrDesc)
 }

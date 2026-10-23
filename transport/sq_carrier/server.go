@@ -47,9 +47,7 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 }
 
 func (s *server) Serve(ctx context.Context, conn *quic.Conn) {
-	//goland:noinspection GoResourceLeak
 	serverConn := newServerQUICConn(ctx, s, conn)
-	go serverConn.handleUniStreams(conn)
 	go serverConn.handleAuthTimeout()
 	serverConn.handleStreams(conn)
 }

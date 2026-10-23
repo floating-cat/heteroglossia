@@ -8,7 +8,12 @@ import (
 	"github.com/floating-cat/heteroglossia/util/log"
 )
 
-const defaultKeyLen = 16
+const (
+	defaultKeyLen = 16
+	// DefaultUsername is non-empty because some servers reject empty usernames
+	// in Basic authentication
+	DefaultUsername = "hg"
+)
 
 func Derive(password []byte, info string) []byte {
 	return DeriveN(password, info, defaultKeyLen)

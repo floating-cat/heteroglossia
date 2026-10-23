@@ -15,7 +15,4 @@ const (
 	proxyAuthHeaderKey = "Proxy-Authorization"
 	paddingHeaderKey   = "Padding"
 	basicAuthPrefix    = "Basic "
-	// basicAuthUsername is non-empty because the official server, Caddy with
-	// forwardproxy, rejects empty usernames in its Caddyfile "basic_auth".
-	basicAuthUsername = "hg"
 )

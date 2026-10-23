@@ -75,40 +75,43 @@ func (c *client) getQUICConn(ctx context.Context) (*quic.Conn, error) {
 	if err != nil {
 		return nil, errors.Newf("fail to connect to the server %v: %.0w", c.serverHostWithPort, err)
 	}
-	go func() {
-		err := c.authenticate(conn)
-		if err != nil {
-			log.WarnWithError("fail to authenticate with the server", err, "server", c.serverHostWithPort)
-			_ = conn.CloseWithError(connCloseErrCode, connCloseErrDesc)
-		}
-	}()
-	select {
-	case <-ctx.Done():
+	err = c.authenticate(ctx, conn)
+	if err != nil {
 		_ = conn.CloseWithError(connCloseErrCode, connCloseErrDesc)
-		return nil, errors.Newf("a QUIC connection is canceled: %w", context.Cause(ctx))
-	case <-conn.Context().Done():
-		return nil, errors.Newf("fail to handshake with the server %v: %w", c.serverHostWithPort, context.Cause(conn.Context()))
-	case <-conn.HandshakeComplete():
-		c.quicConn = conn
-		return conn, nil
+		return nil, err
 	}
+	c.quicConn = conn
+	return conn, nil
 }
 
-// authenticate delivers the authentication command over conn, sending it as
-// 0-RTT early data when the dial resumed a TLS session. Authentication is
-// idempotent, so it is safe both as 0-RTT data and to re-send: if the server
-// rejects 0-RTT, the early data is discarded, so it re-sends once the 1-RTT
-// handshake is up.
-func (c *client) authenticate(conn *quic.Conn) error {
+// authenticate delivers the authentication command over conn and waits for
+// the handshake to complete. Authentication is idempotent, so it is safe both
+// as 0-RTT data and to re-send: if the server rejects 0-RTT, the early data is
+// discarded, so it re-sends once the 1-RTT handshake is up.
+func (c *client) authenticate(ctx context.Context, conn *quic.Conn) error {
+	var sentAs0RTT bool
+	select {
+	case <-conn.HandshakeComplete():
+	default:
+		sentAs0RTT = true
+	}
 	err := c.sendAuthenticationCommand(conn)
 	rtt0Rejected := errors.Is(err, quic.Err0RTTRejected)
 	if err != nil && !rtt0Rejected {
 		return err
 	}
 
-	if rtt0Rejected {
+	select {
+	case <-ctx.Done():
+		return errors.Newf("a QUIC connection is canceled: %w", context.Cause(ctx))
+	case <-conn.Context().Done():
+		return errors.Newf("fail to handshake with the server %v: %w", c.serverHostWithPort, context.Cause(conn.Context()))
+	case <-conn.HandshakeComplete():
+	}
+
+	if rtt0Rejected || (sentAs0RTT && !conn.ConnectionState().Used0RTT) {
 		log.Warn("0-RTT connection rejected by the QUIC server", "server", c.serverHostWithPort)
-		_, err = conn.NextConnection(conn.Context())
+		_, err = conn.NextConnection(ctx)
 		if err != nil {
 			return errors.WithStack(err)
 		}
@@ -118,11 +121,12 @@ func (c *client) authenticate(conn *quic.Conn) error {
 }
 
 func (c *client) sendAuthenticationCommand(conn *quic.Conn) error {
-	stream, err := conn.OpenUniStream()
+	stream, err := conn.OpenStream()
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	defer func(stream *quic.SendStream) {
+	defer func(stream *quic.Stream) {
+		stream.CancelRead(streamConnCloseErrCode)
 		_ = stream.Close()
 	}(stream)
 
