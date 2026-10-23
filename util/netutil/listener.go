@@ -84,6 +84,7 @@ func ListenHTTPAndServeWithListenerCallback(ctx context.Context, addr string,
 			Handler:      httpHandler,
 			ReadTimeout:  httpReadTimeout,
 			WriteTimeout: httpWriteTimeout,
+			BaseContext:  func(net.Listener) context.Context { return ctx },
 			Protocols:    protocols,
 		}
 		return server.Serve(ln)
@@ -95,6 +96,12 @@ func ListenTLSAndAccept(ctx context.Context, addr string, tlsConfig *tls.Config,
 	return listenTCPAndAccept(ctx, addr, func(ln net.Listener) error {
 		tlsLn := tls.NewListener(ln, tlsConfig)
 		return acceptNetConn(tlsLn, connHandler)
+	}, nil)
+}
+
+func ListenHTTPSAndServe(ctx context.Context, addr string, tlsConfig *tls.Config, server *http.Server) error {
+	return listenTCPAndAccept(ctx, addr, func(ln net.Listener) error {
+		return server.Serve(tls.NewListener(ln, tlsConfig))
 	}, nil)
 }
 

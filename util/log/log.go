@@ -1,6 +1,7 @@
 package log
 
 import (
+	"log"
 	"log/slog"
 	"os"
 	"sync/atomic"
@@ -29,6 +30,12 @@ func SetVerbose(b bool) {
 }
 
 var Info = slog.Info
+
+// NewStdLogger returns a standard library logger that writes to slog at the
+// info level, for packages like net/http that only accept a *log.Logger.
+func NewStdLogger() *log.Logger {
+	return slog.NewLogLogger(slog.Default().Handler(), slog.LevelInfo)
+}
 
 func InfoWithError(msg string, err error, args ...any) {
 	if verbose.Load() == true {

@@ -128,6 +128,7 @@ func validate(config *Config) error {
 				rules.OneOf(
 					ShadowsocksTransport, ShadowsocksTransportAlias,
 					TrojanTransport, TrojanTransportAlias,
+					NaiveProxyTransport, NaiveProxyTransportAlias,
 					SunnyQUICTransport, SunnyQUICTransportAlias,
 				),
 				govy.NewRule(func(tcp TCPTransport) error {
@@ -188,12 +189,13 @@ func validate(config *Config) error {
 		govy.For(func(r Routing) string { return r.Final }).
 			WithName("final").
 			Rules(govy.NewRule(func(final string) error {
-				if final == "direct" || final == "reject" {
+				if final == DirectPolicy || final == RejectPolicy {
 					return nil
 				}
 				if _, ok := config.Outbounds[final]; !ok {
 					return govy.NewRuleError(fmt.Sprintf(
-						"must be \"direct\", \"reject\", or an outbound name (%v)", outboundNames),
+						"must be \"%v\", \"%v\", or an outbound name (%v)",
+						DirectPolicy, RejectPolicy, outboundNames),
 						"final_invalid")
 				}
 				return nil

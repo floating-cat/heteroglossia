@@ -28,12 +28,12 @@ func newClientConn(conn net.Conn, accessAddr *transport.SocketAddress, passwordH
 	return &clientConn{conn, accessAddr, passwordHash, false}
 }
 
-func (c *clientConn) Write(b []byte) (n int, err error) {
+func (c *clientConn) Write(p []byte) (n int, err error) {
 	if !c.hasWriteFirstPayload {
 		c.hasWriteFirstPayload = true
-		return c.writeClientFirstPayload(b)
+		return c.writeClientFirstPayload(p)
 	}
-	return c.Conn.Write(b)
+	return c.Conn.Write(p)
 }
 
 /*

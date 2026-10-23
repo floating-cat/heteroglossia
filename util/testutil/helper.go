@@ -18,7 +18,7 @@ func TestClientServerConnection(t *testing.T,
 	newServer func(hg *conf.Hg, targetClient transport.Client) transport.Server) {
 	t.Helper()
 	hg := StartTestServer(t, newServer)
-	client, err := newClient(toProxyNode(hg))
+	client, err := newClient(ToProxyNode(hg))
 	must.NoError(t, err)
 
 	server := startWebServer()
@@ -68,7 +68,7 @@ func startWebServer() *httptest.Server {
 	return httptest.NewServer(handler)
 }
 
-func toProxyNode(hg *conf.Hg) *conf.ProxyNode {
+func ToProxyNode(hg *conf.Hg) *conf.ProxyNode {
 	return &conf.ProxyNode{
 		Host:              hg.Host,
 		Password:          hg.Password,

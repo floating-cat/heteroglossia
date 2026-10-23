@@ -7,6 +7,7 @@ import (
 const (
 	SourceTag  = "source"
 	InboundTag = "inbound"
+	PolicyTag  = "policy"
 )
 
 func WithSourceAndInboundValues(ctx context.Context, sourceAddr, inbound string) context.Context {

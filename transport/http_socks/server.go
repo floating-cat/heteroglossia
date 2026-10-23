@@ -62,10 +62,10 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 		host = ""
 	}
 
-	addr := netutil.JoinHostPort(host, s.httpSOCKS.Port)
 	return parRunWithFirstErrReturn(cancel, func() error {
 		var unsetProxy func()
 		var hasUnsetProxy atomic.Bool
+		addr := netutil.JoinHostPort(host, s.httpSOCKS.Port)
 		return netutil.ListenTCPAndServeWithListenerCallback(ctx, addr, connHandler, func(net.Listener) {
 			if s.httpSOCKS.SystemProxy {
 				log.Info("try to set the system proxy")

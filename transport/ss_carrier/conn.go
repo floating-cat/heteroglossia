@@ -42,6 +42,7 @@ type conn struct {
 var _ net.Conn = (*conn)(nil)
 var _ io.ReaderFrom = (*conn)(nil)
 var _ io.WriterTo = (*conn)(nil)
+var _ ioutil.CloseWriter = (*conn)(nil)
 
 func newClientConn(tcpConn *net.TCPConn, accessAddr *transport.SocketAddress,
 	preSharedKey []byte, salt []byte, aeadOverhead int) *conn {
@@ -228,12 +229,12 @@ func (c *conn) writeServerFirstPayload(payload []byte) error {
 	return err
 }
 
-func (c *conn) Read(b []byte) (n int, err error) {
+func (c *conn) Read(p []byte) (n int, err error) {
 	// Return early otherwise a zero-length read would read the next chunk.
-	if len(b) == 0 {
+	if len(p) == 0 {
 		return 0, nil
 	}
-	return c.readOrWriteTo(b, nil)
+	return c.readOrWriteTo(p, nil)
 }
 
 func (c *conn) readOrWriteTo(b []byte, w io.Writer) (n int, err error) {

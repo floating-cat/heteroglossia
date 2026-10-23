@@ -1,6 +1,7 @@
 package router
 
 import (
+	"cmp"
 	"context"
 	"net"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/transport/direct"
+	"github.com/floating-cat/heteroglossia/transport/np_carrier"
 	"github.com/floating-cat/heteroglossia/transport/reject"
 	"github.com/floating-cat/heteroglossia/transport/sq_carrier"
 	"github.com/floating-cat/heteroglossia/transport/ss_carrier"
@@ -87,19 +89,19 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 		}
 		c.routingRWMutex.RUnlock()
 
-		if policy == "final" || policy == "" {
+		if policy == conf.FinalPolicy || policy == "" {
 			policy = c.routing.Final
 		}
 	} else {
 		// default to direct if no routing is configured
-		policy = "direct"
+		policy = conf.DirectPolicy
 	}
 
 	var nextClient transport.Client
 	switch policy {
-	case "direct":
+	case conf.DirectPolicy:
 		nextClient = direct.Client
-	case "reject":
+	case conf.RejectPolicy:
 		nextClient = reject.Client
 	default:
 		var err error
@@ -108,8 +110,11 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 			return nil, err
 		}
 	}
-	log.Info("routing", contextutil.SourceTag, ctx.Value(contextutil.SourceTag),
-		contextutil.InboundTag, ctx.Value(contextutil.InboundTag), "access", addr.ToHostStr(), "policy", policy)
+	log.Info("routing",
+		contextutil.SourceTag, ctx.Value(contextutil.SourceTag),
+		contextutil.InboundTag, ctx.Value(contextutil.InboundTag),
+		"access", addr.ToHostStr(),
+		"policy", cmp.Or[any](ctx.Value(contextutil.PolicyTag), policy))
 	return nextClient.DialTCP(ctx, addr)
 }
 
@@ -139,6 +144,8 @@ func newCarrierClient(transport conf.TCPTransport, proxyNode *conf.ProxyNode, tl
 		return ss_carrier.NewClient(proxyNode), nil
 	case conf.TrojanTransport, conf.TrojanTransportAlias:
 		return tr_carrier.NewClient(proxyNode, tlsKeyLog)
+	case conf.NaiveProxyTransport, conf.NaiveProxyTransportAlias:
+		return np_carrier.NewClient(proxyNode, tlsKeyLog)
 	case conf.SunnyQUICTransport, conf.SunnyQUICTransportAlias:
 		return sq_carrier.NewClient(proxyNode, tlsKeyLog)
 	default:

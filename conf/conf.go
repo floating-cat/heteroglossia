@@ -196,6 +196,16 @@ const (
 	ShadowsocksTransportAlias TCPTransport = "ss"
 	TrojanTransport           TCPTransport = "trojan"
 	TrojanTransportAlias      TCPTransport = "tr"
+	NaiveProxyTransport       TCPTransport = "naiveproxy"
+	NaiveProxyTransportAlias  TCPTransport = "np"
 	SunnyQUICTransport        TCPTransport = "sunnyquic"
 	SunnyQUICTransportAlias   TCPTransport = "sq"
+
+	DirectPolicy = "direct"
+	FinalPolicy  = "final"
+	RejectPolicy = "reject"
+	// FallbackPolicy isn't used in the JSON config; it’s used only for logging
+	// when a request doesn't match the proxy protocol and is handled by the
+	// internal web server as a fallback.
+	FallbackPolicy = "fallback"
 )

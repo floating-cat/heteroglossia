@@ -16,6 +16,10 @@ Identity Headers" specification.
 
 It doesn't support UDP.
 
+### NaiveProxy carrier
+
+It doesn't support HTTP/3.
+
 ### SunnyQUIC carrier
 
 It doesn't support UDP.

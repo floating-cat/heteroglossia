@@ -73,20 +73,21 @@ func (c *client) getQUICConn(ctx context.Context) (*quic.Conn, error) {
 
 	conn, err := netutil.DialQUICEarly(ctx, c.serverHostWithPort, c.tlsConfig)
 	if err != nil {
-		return nil, errors.Newf("fail to connect to the QUIC server %v: %.0w", c.serverHostWithPort, err)
+		return nil, errors.Newf("fail to connect to the server %v: %.0w", c.serverHostWithPort, err)
 	}
 	go func() {
 		err := c.authenticate(conn)
 		if err != nil {
-			log.WarnWithError("fail to authenticate with the QUIC server", err, "server", c.serverHostWithPort)
+			log.WarnWithError("fail to authenticate with the server", err, "server", c.serverHostWithPort)
 			_ = conn.CloseWithError(connCloseErrCode, connCloseErrDesc)
 		}
 	}()
 	select {
 	case <-ctx.Done():
-		return nil, errors.Newf("a QUIC connection is canceled: %w", context.Cause(conn.Context()))
+		_ = conn.CloseWithError(connCloseErrCode, connCloseErrDesc)
+		return nil, errors.Newf("a QUIC connection is canceled: %w", context.Cause(ctx))
 	case <-conn.Context().Done():
-		return nil, errors.Newf("fail to handshake with the QUIC server %v: %w", c.serverHostWithPort, context.Cause(conn.Context()))
+		return nil, errors.Newf("fail to handshake with the server %v: %w", c.serverHostWithPort, context.Cause(conn.Context()))
 	case <-conn.HandshakeComplete():
 		c.quicConn = conn
 		return conn, nil

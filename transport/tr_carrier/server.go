@@ -3,7 +3,6 @@ package tr_carrier
 import (
 	"context"
 	"crypto/subtle"
-	"crypto/tls"
 	"net"
 	"net/http"
 	"net/netip"
@@ -27,7 +26,6 @@ type server struct {
 	tlsCertKeyPair            *conf.TLSCertKeyPair
 	tlsBadAuthFallbackSiteDir string
 
-	tlsConfig                    *tls.Config
 	tlsBadAuthFallbackServerPort uint16
 	targetClient                 transport.Client
 }
@@ -44,8 +42,7 @@ func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
 }
 
 func (s *server) ListenAndServe(ctx context.Context) error {
-	var err error
-	s.tlsConfig, err = netutil.TLSServerConfig(s.host, s.tlsCertKeyPair, false)
+	tlsConfig, err := netutil.TLSServerConfig(s.host, s.tlsCertKeyPair, false)
 	if err != nil {
 		return err
 	}
@@ -66,7 +63,7 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 	s.tlsBadAuthFallbackServerPort = <-port
 
 	hostWithPort := netutil.JoinHostPort(s.host, s.port)
-	return netutil.ListenTLSAndAccept(ctx, hostWithPort, s.tlsConfig, func(conn net.Conn) {
+	return netutil.ListenTLSAndAccept(ctx, hostWithPort, tlsConfig, func(conn net.Conn) {
 		connCtx := contextutil.WithSourceAndInboundValues(ctx, conn.RemoteAddr().String(), "Trojan carrier")
 		err := s.Serve(connCtx, conn)
 		_ = conn.Close()
@@ -104,6 +101,7 @@ func (s *server) Serve(ctx context.Context, conn net.Conn) error {
 		unrelatedBs = append(unrelatedBs, unreadBs...)
 		fallbackAddr := transport.NewSocketAddressByIP(new(netip.IPv6Loopback()), s.tlsBadAuthFallbackServerPort)
 		ctx := contextutil.WithValues(ctx, contextutil.InboundTag, "Trojan carrier with wrong auth")
+		ctx = contextutil.WithValues(ctx, contextutil.PolicyTag, conf.FallbackPolicy)
 		return transport.ForwardTCP(ctx, fallbackAddr, ioutil.NewBytesReadPreloadConn(unrelatedBs, conn), s.targetClient)
 	}
 

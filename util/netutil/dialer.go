@@ -4,15 +4,13 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
-	"time"
 
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/quic-go/quic-go"
 )
 
 var (
-	dialer        = net.Dialer{Timeout: dialerTimeout, KeepAliveConfig: KeepAliveConfig}
-	dialerTimeout = 10 * time.Second
+	dialer = net.Dialer{Timeout: dialerTimeout, KeepAliveConfig: KeepAliveConfig}
 )
 
 func dial(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -36,23 +34,14 @@ func DialTLS(ctx context.Context, addr string, tlsConfig *tls.Config) (*tls.Conn
 	return tls.Client(conn, tlsConfig), nil
 }
 
+func HandshakeTLS(ctx context.Context, tlsConn *tls.Conn) error {
+	ctx, cancel := context.WithTimeout(ctx, dialerTimeout)
+	defer cancel()
+	return errors.WithStack(tlsConn.HandshakeContext(ctx))
+}
+
 // DialQUICEarly dials a QUIC connection with 0-RTT support.
 // https://quic-go.net/docs/quic/client/#0-rtt
 func DialQUICEarly(ctx context.Context, addr string, tlsConf *tls.Config) (*quic.Conn, error) {
 	return errors.WithStack2(quic.DialAddrEarly(ctx, addr, tlsConf, newQUICConfig()))
-}
-
-// newQUICConfig can't be reused
-func newQUICConfig() *quic.Config {
-	return &quic.Config{
-		HandshakeIdleTimeout:           dialerTimeout,
-		MaxIdleTimeout:                 KeepAliveIdleTimeout,
-		KeepAlivePeriod:                KeepAliveInterval,
-		MaxIncomingStreams:             200,
-		InitialStreamReceiveWindow:     1 << 20,        // 1 MB
-		MaxStreamReceiveWindow:         12 * (1 << 20), // 12 MB
-		InitialConnectionReceiveWindow: 1 * (1 << 20),  // 1 MB
-		MaxConnectionReceiveWindow:     30 * (1 << 20), // 30 MB
-		Allow0RTT:                      true,
-	}
 }
