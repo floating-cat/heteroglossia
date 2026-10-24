@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"io"
 	"os"
 	"path"
 	"sync"
@@ -147,4 +148,25 @@ func TLSServerConfig(host string, tlsCertKeyPair *conf.TLSCertKeyPair, http3 boo
 		return tlsH3Config, nil
 	}
 	return tlsConfig, nil
+}
+
+// RespondToPlainHTTP replies the way net/http's HTTPS server does when err,
+// from a TLS handshake, shows that the client sent a plain HTTP request
+// instead. This is standard behavior for some HTTPS servers.
+func RespondToPlainHTTP(err error) {
+	var recordErr tls.RecordHeaderError
+	if errors.As(err, &recordErr) && recordErr.Conn != nil && tlsRecordHeaderLooksLikeHTTP(recordErr.RecordHeader) {
+		_, _ = io.WriteString(recordErr.Conn,
+			"HTTP/1.0 400 Bad Request\r\n\r\nClient sent an HTTP request to an HTTPS server.\n")
+	}
+}
+
+// tlsRecordHeaderLooksLikeHTTP is a copy of the unexported function of the
+// same name in net/http.
+func tlsRecordHeaderLooksLikeHTTP(hdr [5]byte) bool {
+	switch string(hdr[:]) {
+	case "GET /", "HEAD ", "POST ", "PUT /", "OPTIO":
+		return true
+	}
+	return false
 }

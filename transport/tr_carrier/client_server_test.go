@@ -17,6 +17,10 @@ func TestTRServerServesFallbackWithWrongProtocol(t *testing.T) {
 	testutil.TestServerServesFallbackWithWrongProtocol(t, newServer)
 }
 
+func TestTRServerRejectsPlainHTTP(t *testing.T) {
+	testutil.TestServerRejectsPlainHTTP(t, newServer)
+}
+
 func newClient(proxyNode *conf.ProxyNode) (transport.Client, error) {
 	return NewClient(proxyNode, false)
 }

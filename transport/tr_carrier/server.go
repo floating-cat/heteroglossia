@@ -66,6 +66,7 @@ func (s *Server) serve(ctx context.Context, conn net.Conn) error {
 
 	authenticated, err := s.HasPasswordHash(bufReader)
 	if err != nil {
+		netutil.RespondToPlainHTTP(err)
 		return err
 	}
 	if !authenticated {

@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"context"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -52,13 +53,19 @@ func startWebServer() *httptest.Server {
 	return httptest.NewServer(handler)
 }
 
-func testRequestSuccess(t *testing.T, client *http.Client, url string) {
+func testRequest(t *testing.T, client *http.Client, url string) *http.Response {
 	t.Helper()
 	// sleep briefly for the server to start up
 	time.Sleep(20 * time.Millisecond)
 	resp, err := client.Get(url)
 	must.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
+	return resp
+}
+
+func testRequestSuccess(t *testing.T, client *http.Client, url string) {
+	t.Helper()
+	resp := testRequest(t, client, url)
+	_ = resp.Body.Close()
 	must.Between(t, 200, resp.StatusCode, 299)
 }
 

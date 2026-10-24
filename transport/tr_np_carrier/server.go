@@ -79,6 +79,7 @@ func (s *server) serve(ctx context.Context, conn *tls.Conn, naiveproxyLn *netuti
 
 	isTrojan, err := s.trojan.HasPasswordHash(bufReader)
 	if err != nil {
+		netutil.RespondToPlainHTTP(err)
 		_ = conn.Close()
 		return err
 	}

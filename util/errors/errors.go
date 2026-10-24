@@ -33,6 +33,8 @@ var Append = xerrors.Append
 
 var Is = errors.Is
 
+var As = errors.As
+
 func IsIoEof(err error) bool {
 	return errors.Is(err, io.EOF)
 }
