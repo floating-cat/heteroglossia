@@ -8,6 +8,7 @@ import (
 
 	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/transport"
+	"github.com/floating-cat/heteroglossia/util/contextutil"
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/ioutil"
 	"github.com/floating-cat/heteroglossia/util/log"
@@ -40,6 +41,7 @@ func (s *Server) ListenAndServe(context.Context) error {
 // connection header to make the impl simper.
 // forked from https://github.com/database64128/shadowsocks-go/blob/88c2d63ccd0b022f76902195ceb1559eaf15a3a7/http/server.go
 func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
+	ctx = contextutil.WithSourceAndInboundValues(ctx, conn.RemoteAddr().String(), "HTTP Proxy")
 	buf := pool.Get(ioutil.BufSize)
 	defer pool.Put(buf)
 	connBufReader := ioutil.NewBufioReader(buf, conn)

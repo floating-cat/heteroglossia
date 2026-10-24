@@ -30,12 +30,12 @@ func Start(ctx context.Context, hg *conf.Hg, targetClient transport.Client) (*Se
 	} else {
 		httpHandler = http.NotFoundHandler()
 	}
-	port := make(chan uint16, 1)
+	listenPort := make(chan uint16, 1)
 	listenErr := make(chan error, 1)
 	go func() {
 		listenAddr := netutil.JoinHostPort("127.0.0.1", 0)
 		err := netutil.ListenUnencryptedHTTPAndServeWithListenerCallback(ctx, listenAddr, httpHandler, func(ln net.Listener) {
-			port <- uint16(ln.Addr().(*net.TCPAddr).Port)
+			listenPort <- uint16(ln.Addr().(*net.TCPAddr).Port)
 		})
 		if err != nil {
 			listenErr <- err
@@ -43,7 +43,7 @@ func Start(ctx context.Context, hg *conf.Hg, targetClient transport.Client) (*Se
 	}()
 
 	select {
-	case tlsBadAuthFallbackSitePort := <-port:
+	case tlsBadAuthFallbackSitePort := <-listenPort:
 		return new(Server{tlsBadAuthFallbackSitePort, httpHandler, targetClient}), nil
 	case err := <-listenErr:
 		return nil, err
@@ -64,6 +64,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request, targetAddr st
 	log.Info("routing",
 		contextutil.SourceTag, r.RemoteAddr,
 		contextutil.InboundTag, inbound,
-		"access", targetAddr, contextutil.PolicyTag, policy)
+		contextutil.AccessTag, targetAddr, contextutil.PolicyTag, policy)
 	s.httpHandler.ServeHTTP(w, r)
 }

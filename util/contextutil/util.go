@@ -7,6 +7,7 @@ import (
 const (
 	SourceTag  = "source"
 	InboundTag = "inbound"
+	AccessTag  = "access"
 	PolicyTag  = "policy"
 )
 

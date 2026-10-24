@@ -8,8 +8,10 @@ import (
 
 	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/transport"
+	"github.com/floating-cat/heteroglossia/util/contextutil"
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/ioutil"
+	"github.com/floating-cat/heteroglossia/util/log"
 )
 
 type Server struct {
@@ -70,14 +72,27 @@ func (s *Server) ListenAndServe(context.Context) error {
 	panic("no implemented")
 }
 
-// Serve handle SOCKS5 request without the first version byte
 func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
-	return s.handleClientHelloRequest(ctx, conn)
+	version, err := ioutil.Read1(conn)
+	if err != nil {
+		return err
+	}
+	switch version {
+	case Version4:
+		log.Info("routing", contextutil.SourceTag, conn.RemoteAddr().String(),
+			contextutil.InboundTag, "SOCKS4 Proxy", contextutil.AccessTag, "unknown", contextutil.PolicyTag, "unsupported & rejected")
+		return errors.New("SOCKS4 protocol is not supported, only SOCKS5 is supported")
+	case Version5:
+		ctx = contextutil.WithSourceAndInboundValues(ctx, conn.RemoteAddr().String(), "SOCKS5 Proxy")
+		return s.handleClientHelloRequest(ctx, conn)
+	default:
+		return errors.Newf("SOCKS%v protocol is not supported, only SOCKS5 is supported", version)
+	}
 }
 
 func (s *Server) handleClientHelloRequest(ctx context.Context, conn net.Conn) error {
-	// The version byte of the SOCKS5 protocol is already checked in the
-	// http_socks package, so we start to check the 'methods' directly.
+	// The version byte of the SOCKS5 protocol is already checked in Serve, so
+	// we start to check the 'methods' directly.
 	methods, err := ioutil.ReadByUint8(conn)
 	if err != nil {
 		return err

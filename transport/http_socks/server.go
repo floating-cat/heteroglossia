@@ -9,8 +9,6 @@ import (
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/transport/http"
 	"github.com/floating-cat/heteroglossia/transport/socks"
-	"github.com/floating-cat/heteroglossia/util/contextutil"
-	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/ioutil"
 	"github.com/floating-cat/heteroglossia/util/log"
 	"github.com/floating-cat/heteroglossia/util/netutil"
@@ -103,19 +101,15 @@ func (s *server) serve(ctx context.Context, conn net.Conn) error {
 	if err != nil {
 		return err
 	}
+	// put the byte back, so the SOCKS or HTTP server can read the whole request
+	//goland:noinspection GoResourceLeak
+	conn = ioutil.NewBytesReadPreloadConn([]byte{b}, conn)
 	switch b {
-	case socks.Version4:
-		log.Info("routing", contextutil.SourceTag, conn.RemoteAddr().String(),
-			contextutil.InboundTag, "SOCKS4 Proxy", "access", "unknown", "policy", "unsupported & rejected")
-		return errors.New("SOCKS4 protocol is not supported, only SOCKS5 is supported")
-	case socks.Version5:
-		ctx = contextutil.WithSourceAndInboundValues(ctx, conn.RemoteAddr().String(), "SOCKS5 Proxy")
+	case socks.Version4, socks.Version5:
 		return s.socks.Serve(ctx, conn)
 	default:
 		// assume this is an HTTP proxy request
-		ctx = contextutil.WithSourceAndInboundValues(ctx, conn.RemoteAddr().String(), "HTTP Proxy")
-		//goland:noinspection GoResourceLeak
-		return s.http.Serve(ctx, ioutil.NewBytesReadPreloadConn([]byte{b}, conn))
+		return s.http.Serve(ctx, conn)
 	}
 }
 

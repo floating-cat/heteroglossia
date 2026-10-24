@@ -113,8 +113,8 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 	log.Info("routing",
 		contextutil.SourceTag, ctx.Value(contextutil.SourceTag),
 		contextutil.InboundTag, ctx.Value(contextutil.InboundTag),
-		"access", addr.ToHostStr(),
-		"policy", cmp.Or[any](ctx.Value(contextutil.PolicyTag), policy))
+		contextutil.AccessTag, addr.ToHostStr(),
+		contextutil.PolicyTag, cmp.Or[any](ctx.Value(contextutil.PolicyTag), policy))
 	return nextClient.DialTCP(ctx, addr)
 }
 
