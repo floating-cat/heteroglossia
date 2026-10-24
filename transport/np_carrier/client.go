@@ -50,25 +50,22 @@ func NewClient(proxyNode *conf.ProxyNode, tlsKeyLog bool) (transport.Client, err
 		return nil, err
 	}
 
+	tr := netutil.NewHTTPTransport()
 	protocols := new(http.Protocols)
 	protocols.SetHTTP2(true)
+	tr.Protocols = protocols
+	tr.DialTLSContext = func(ctx context.Context, network string, addr string) (net.Conn, error) {
+		tlsConn, ok := ctx.Value(dialedConnKey{}).(*tls.Conn)
+		if !ok {
+			return nil, errors.New("no dialed connection to the server")
+		}
+		return tlsConn, nil
+	}
 	return &client{
 		serverHostWithPort: netutil.JoinHostPort(proxyNode.Host, proxyNode.TLSPort),
 		basicAuthToken:     basicAuthPrefix + basicAuthToken(proxyNode.Password[:]),
 		tlsConfig:          tlsConfig,
-		transport: &http.Transport{
-			Protocols:             protocols,
-			ResponseHeaderTimeout: netutil.HTTPReadHeaderTimeout,
-			IdleConnTimeout:       netutil.HTTPClientIdleConnTimeout,
-			HTTP2:                 &http.HTTP2Config{SendPingTimeout: netutil.KeepAliveInterval},
-			DialTLSContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-				tlsConn, ok := ctx.Value(dialedConnKey{}).(*tls.Conn)
-				if !ok {
-					return nil, errors.New("no dialed connection to the server")
-				}
-				return tlsConn, nil
-			},
-		},
+		transport:          tr,
 	}, nil
 }
 
@@ -108,13 +105,13 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 		_ = pipeWriter.Close()
 		return nil, err
 	}
-	closeFn := func() error {
+	closeFunc := func() error {
 		err := respBody.Close()
 		_ = pipeWriter.Close()
 		return err
 	}
 	return newConn(respBody, pipeWriter, padding,
-		closeFn, pipeWriter.Close, clientConn.localAddr, clientConn.remoteAddr), nil
+		closeFunc, pipeWriter.Close, clientConn.localAddr, clientConn.remoteAddr), nil
 }
 
 // fastOpen returns a conn right away without waiting for the CONNECT response,
@@ -130,11 +127,11 @@ func (conn *clientConn) fastOpen(req *http.Request, host string, pipeWriter *io.
 		body.rc, body.err = respBody, err
 	}()
 
-	closeFn := func() error {
+	closeFunc := func() error {
 		cancel()
 		return pipeWriter.Close()
 	}
-	return newConn(body, pipeWriter, true, closeFn, pipeWriter.Close, conn.localAddr, conn.remoteAddr)
+	return newConn(body, pipeWriter, true, closeFunc, pipeWriter.Close, conn.localAddr, conn.remoteAddr)
 }
 
 // connect sends the CONNECT request and waits for its response.

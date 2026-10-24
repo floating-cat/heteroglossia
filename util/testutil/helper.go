@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,55 +11,38 @@ import (
 	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/transport/direct"
+	"github.com/floating-cat/heteroglossia/transport/fallback_http"
 	"github.com/shoenig/test/must"
 )
 
-func TestClientServerConnection(t *testing.T,
-	newClient func(proxyNode *conf.ProxyNode) (transport.Client, error),
-	newServer func(hg *conf.Hg, targetClient transport.Client) transport.Server) {
-	t.Helper()
-	hg := StartTestServer(t, newServer)
-	client, err := newClient(ToProxyNode(hg))
-	must.NoError(t, err)
-
-	server := startWebServer()
-	defer server.Close()
-	httpClient := transport.HTTPClientThroughRouter(client)
-	TestRequestSuccess(t, httpClient, server.URL)
-}
-
-func StartTestServer(t *testing.T,
-	newServer func(hg *conf.Hg, targetClient transport.Client) transport.Server) *conf.Hg {
+func startTestServer(t *testing.T,
+	newServer func(hg *conf.Hg, targetClient transport.Client, fallbackHttpServer *fallback_http.Server) transport.Server) *conf.Hg {
 	t.Helper()
 	serverConf, err := conf.Parse("../../server_example.conf.json", "../../domain-ip-set-rules-sample.db")
 	must.NoError(t, err)
 	hg := serverConf.Inbounds.Hg
 	must.NotNil(t, hg)
+	useFreePorts(t, hg)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	serverErr := make(chan error, 1)
 	go func() {
-		server := newServer(hg, direct.Client)
-		serverErr <- server.ListenAndServe(ctx)
+		targetClient := direct.Client
+		fallbackHttpServer, err := fallback_http.Start(ctx, hg, targetClient)
+		if err != nil {
+			serverErr <- err
+		} else {
+			server := newServer(hg, targetClient, fallbackHttpServer)
+			serverErr <- server.ListenAndServe(ctx)
+		}
 	}()
-	// Tests in one package share the fixed server port from the config file,
-	// so wait for the server to shut down and release its port before the
-	// next test starts
+	// Wait for the server to shut down, so it doesn't outlive the test and its
+	// error is still checked.
 	t.Cleanup(func() {
 		cancel()
 		must.NoError(t, <-serverErr)
 	})
 	return hg
-}
-
-func TestRequestSuccess(t *testing.T, client *http.Client, url string) {
-	t.Helper()
-	// sleep briefly for the server to start up
-	time.Sleep(10 * time.Millisecond)
-	resp, err := client.Get(url)
-	must.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
-	must.Between(t, 200, resp.StatusCode, 299)
 }
 
 func startWebServer() *httptest.Server {
@@ -68,7 +52,54 @@ func startWebServer() *httptest.Server {
 	return httptest.NewServer(handler)
 }
 
-func ToProxyNode(hg *conf.Hg) *conf.ProxyNode {
+func testRequestSuccess(t *testing.T, client *http.Client, url string) {
+	t.Helper()
+	// sleep briefly for the server to start up
+	time.Sleep(20 * time.Millisecond)
+	resp, err := client.Get(url)
+	must.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	must.Between(t, 200, resp.StatusCode, 299)
+}
+
+// useFreePorts replaces the fixed ports from the example config with free
+// ones, so test packages that go test runs in parallel don't collide on them.
+func useFreePorts(t *testing.T, hg *conf.Hg) {
+	t.Helper()
+	tcpPorts := freeTCPPorts(t, 2)
+	hg.TCPPort = &tcpPorts[0]
+	hg.TLSPort = tcpPorts[1]
+	hg.QUICPort = freeUDPPort(t)
+}
+
+func freeTCPPorts(t *testing.T, n int) []uint16 {
+	t.Helper()
+	ports := make([]uint16, n)
+	for i := range ports {
+		ln, err := net.Listen("tcp", ":0")
+		must.NoError(t, err)
+		// Close all listeners only after every port has been picked, so the OS
+		// is unlikely to assign the same port twice.
+		//goland:noinspection GoDeferInLoop
+		defer func(ln net.Listener) {
+			_ = ln.Close()
+		}(ln)
+		ports[i] = uint16(ln.Addr().(*net.TCPAddr).Port)
+	}
+	return ports
+}
+
+func freeUDPPort(t *testing.T) uint16 {
+	t.Helper()
+	conn, err := net.ListenPacket("udp", ":0")
+	must.NoError(t, err)
+	defer func() {
+		_ = conn.Close()
+	}()
+	return uint16(conn.LocalAddr().(*net.UDPAddr).Port)
+}
+
+func toProxyNode(hg *conf.Hg) *conf.ProxyNode {
 	return &conf.ProxyNode{
 		Host:              hg.Host,
 		Password:          hg.Password,

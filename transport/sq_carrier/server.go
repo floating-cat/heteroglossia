@@ -16,19 +16,20 @@ type server struct {
 	tlsCertKeyPair    *conf.TLSCertKeyPair
 	authHash          [64]byte
 	statelessResetKey *quic.StatelessResetKey
-	targetClient      transport.Client
+
+	targetClient transport.Client
 }
 
 var _ transport.Server = (*server)(nil)
 
 func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
 	return &server{
-		host:              hg.Host,
-		port:              hg.QUICPort,
-		tlsCertKeyPair:    hg.TLSCertKeyPair,
-		authHash:          toSunnyQUICAuthHash(hg.Password),
-		statelessResetKey: toStatelessResetKey(hg.Password),
-		targetClient:      targetClient,
+		hg.Host,
+		hg.QUICPort,
+		hg.TLSCertKeyPair,
+		toSunnyQUICAuthHash(hg.Password),
+		toStatelessResetKey(hg.Password),
+		targetClient,
 	}
 }
 
@@ -41,12 +42,12 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 	hostWithPort := netutil.JoinHostPort(s.host, s.port)
 	return netutil.ListenQUICEarlyAndServe(ctx, hostWithPort, tlsConfig, s.statelessResetKey, func(quicConn *quic.Conn) {
 		connCtx := contextutil.WithSourceAndInboundValues(ctx, quicConn.RemoteAddr().String(), "SunnyQUIC carrier")
-		s.Serve(connCtx, quicConn)
+		s.serve(connCtx, quicConn)
 	})
 
 }
 
-func (s *server) Serve(ctx context.Context, conn *quic.Conn) {
+func (s *server) serve(ctx context.Context, conn *quic.Conn) {
 	serverConn := newServerQUICConn(ctx, s, conn)
 	go serverConn.handleAuthTimeout()
 	serverConn.handleStreams(conn)

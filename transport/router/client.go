@@ -30,7 +30,7 @@ type client struct {
 	tlsKeyLog      bool
 
 	// carrierClients caches one carrier client per outbound so that stateful
-	// transports (e.g. SunnyQUIC, which multiplexes every request over a single
+	// transports (e.g., SunnyQUIC, which multiplexes every request over a single
 	// reused QUIC connection) are built once instead of on every DialTCP call.
 	carrierClients      map[string]transport.Client
 	carrierClientsMutex sync.Mutex

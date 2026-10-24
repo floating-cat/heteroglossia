@@ -11,17 +11,17 @@ import (
 
 	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/transport"
+	"github.com/floating-cat/heteroglossia/transport/fallback_http"
 	"github.com/floating-cat/heteroglossia/transport/http_socks"
 	"github.com/floating-cat/heteroglossia/transport/router"
 	"github.com/floating-cat/heteroglossia/transport/sq_carrier"
 	"github.com/floating-cat/heteroglossia/transport/ss_carrier"
-	"github.com/floating-cat/heteroglossia/transport/tr_carrier"
+	"github.com/floating-cat/heteroglossia/transport/tr_np_carrier"
 	"github.com/floating-cat/heteroglossia/util/cli"
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/log"
 	"github.com/floating-cat/heteroglossia/util/netutil"
 	"github.com/floating-cat/heteroglossia/util/osutil"
-	"github.com/floating-cat/heteroglossia/util/strutil"
 	"github.com/floating-cat/heteroglossia/util/updater"
 )
 
@@ -40,9 +40,11 @@ func main() {
 	}
 
 	log.SetVerbose(config.Misc.VerboseLog)
+	ctx := context.Background()
 	if config.Misc.Profiling {
 		go func() {
-			err := netutil.ListenHTTPAndServe(context.Background(), ":"+strutil.ToA(config.Misc.ProfilingPort), nil)
+			profilingAddr := netutil.JoinHostPort("127.0.0.1", config.Misc.ProfilingPort)
+			err := netutil.ListenUnencryptedHTTPAndServe(ctx, profilingAddr, nil)
 			if err != nil {
 				log.Error("fail to start the profiling server", err)
 			}
@@ -56,23 +58,27 @@ func main() {
 		if hg.TCPPort != nil {
 			go func() {
 				server := ss_carrier.NewServer(hg, routerClient)
-				err := server.ListenAndServe(context.Background())
+				err := server.ListenAndServe(ctx)
 				if err != nil {
 					log.Fatal("fail to start the Shadowsocks server", err)
 				}
 			}()
 		}
+		fallbackHttpServer, err := fallback_http.Start(ctx, hg, routerClient)
+		if err != nil {
+			log.Fatal("fail to start the fallback HTTP server", err)
+		}
 		// TLS and QUIC ports are always non-empty, so there's no need to check them.
 		go func() {
-			server := tr_carrier.NewServer(hg, routerClient)
-			err := server.ListenAndServe(context.Background())
+			server := tr_np_carrier.NewServer(hg, routerClient, fallbackHttpServer)
+			err := server.ListenAndServe(ctx)
 			if err != nil {
-				log.Fatal("fail to start the Trojan server", err)
+				log.Fatal("fail to start the Trojan/NaiveProxy server", err)
 			}
 		}()
 		go func() {
 			server := sq_carrier.NewServer(hg, routerClient)
-			err := server.ListenAndServe(context.Background())
+			err := server.ListenAndServe(ctx)
 			if err != nil {
 				log.Fatal("fail to start the SunnyQUIC server", err)
 			}
@@ -81,7 +87,7 @@ func main() {
 	if config.Inbounds.HTTPSOCKS != nil {
 		go func() {
 			server := http_socks.NewServer(config.Inbounds.HTTPSOCKS, routerClient)
-			err := server.ListenAndServe(context.Background())
+			err := server.ListenAndServe(ctx)
 			if err != nil {
 				log.Fatal("fail to start the HTTP/SOCKS server", err)
 			}

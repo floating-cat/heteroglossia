@@ -1,15 +1,15 @@
 package tr_carrier
 
 import (
+	"bufio"
 	"context"
 	"crypto/subtle"
+	"crypto/tls"
 	"net"
-	"net/http"
-	"net/netip"
-	"net/textproto"
 
 	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/transport"
+	"github.com/floating-cat/heteroglossia/transport/fallback_http"
 	"github.com/floating-cat/heteroglossia/transport/socks"
 	"github.com/floating-cat/heteroglossia/util/contextutil"
 	"github.com/floating-cat/heteroglossia/util/errors"
@@ -19,111 +19,135 @@ import (
 	pool "github.com/libp2p/go-buffer-pool"
 )
 
-type server struct {
-	host                      string
-	port                      uint16
-	passwordHash              [56]byte
-	tlsCertKeyPair            *conf.TLSCertKeyPair
-	tlsBadAuthFallbackSiteDir string
+type Server struct {
+	host           string
+	port           uint16
+	passwordHash   [56]byte
+	tlsCertKeyPair *conf.TLSCertKeyPair
 
-	tlsBadAuthFallbackServerPort uint16
-	targetClient                 transport.Client
+	targetClient       transport.Client
+	fallbackHttpServer *fallback_http.Server
 }
 
-var _ transport.Server = (*server)(nil)
+var _ transport.Server = (*Server)(nil)
 
-func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
-	return &server{
-		host: hg.Host, port: hg.TLSPort,
-		tlsCertKeyPair: hg.TLSCertKeyPair, tlsBadAuthFallbackSiteDir: hg.TLSBadAuthFallbackSiteDir,
-		passwordHash: toTrojanPasswordHash(hg.Password),
-		targetClient: targetClient,
+func NewServer(hg *conf.Hg, targetClient transport.Client, fallbackHttpServer *fallback_http.Server) *Server {
+	return &Server{
+		hg.Host,
+		hg.TLSPort,
+		toTrojanPasswordHash(hg.Password),
+		hg.TLSCertKeyPair,
+		targetClient,
+		fallbackHttpServer,
 	}
 }
 
-func (s *server) ListenAndServe(ctx context.Context) error {
+func (s *Server) ListenAndServe(ctx context.Context) error {
 	tlsConfig, err := netutil.TLSServerConfig(s.host, s.tlsCertKeyPair, false)
 	if err != nil {
 		return err
 	}
 
-	port := make(chan uint16, 1)
-	go func() {
-		var httpHandler = http.NotFoundHandler()
-		if s.tlsBadAuthFallbackSiteDir != "" {
-			httpHandler = http.FileServer(http.Dir(s.tlsBadAuthFallbackSiteDir))
-		}
-		err := netutil.ListenHTTPAndServeWithListenerCallback(ctx, ":0", httpHandler, func(ln net.Listener) {
-			port <- uint16(ln.Addr().(*net.TCPAddr).Port)
-		})
-		if err != nil {
-			log.Fatal("fail to serve a fallback server", err)
-		}
-	}()
-	s.tlsBadAuthFallbackServerPort = <-port
-
 	hostWithPort := netutil.JoinHostPort(s.host, s.port)
-	return netutil.ListenTLSAndAccept(ctx, hostWithPort, tlsConfig, func(conn net.Conn) {
+	return netutil.ListenTLSAndAccept(ctx, hostWithPort, tlsConfig, func(conn *tls.Conn) {
 		connCtx := contextutil.WithSourceAndInboundValues(ctx, conn.RemoteAddr().String(), "Trojan carrier")
-		err := s.Serve(connCtx, conn)
+		err := s.serve(connCtx, conn)
 		_ = conn.Close()
-		if err != nil {
+		if err != nil && ctx.Err() == nil {
 			log.InfoWithError("fail to handle a connection", err)
 		}
 	})
 }
 
-func (s *server) Serve(ctx context.Context, conn net.Conn) error {
+func (s *Server) serve(ctx context.Context, conn net.Conn) error {
 	buf := pool.Get(ioutil.BufSize)
 	defer pool.Put(buf)
 	bufReader := ioutil.NewBufioReader(buf, conn)
-	textProtoReader := textproto.NewReader(bufReader)
 
-	// Read one line to make our server like a normal HTTP server.
-	lineBs, err := textProtoReader.ReadLineBytes()
+	authenticated, err := s.HasPasswordHash(bufReader)
+	if err != nil {
+		return err
+	}
+	if !authenticated {
+		unreadBs, err := bufReader.Peek(bufReader.Buffered())
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		//goland:noinspection GoResourceLeak
+		return s.fallbackHttpServer.Handle(ctx, ioutil.NewBytesReadPreloadConn(unreadBs, conn), "Trojan carrier")
+	}
+
+	return s.ServeAuthenticated(ctx, bufReader, conn)
+}
+
+// HasPasswordHash reports whether r starts with the Trojan password hash
+// followed by CRLF. It only peeks at the data, so the data remains unread
+// afterward. It returns false as soon as it encounters a byte that cannot
+// occur in the password-hash-and-CRLF sequence. This prevents clients using
+// another protocol, such as those sending a normal HTTP request, from being
+// left waiting for bytes they will never send. It also returns false without
+// an error if r reaches EOF before all of the header like data arrives.
+func (s *Server) HasPasswordHash(r *bufio.Reader) (bool, error) {
+	hashLen := len(s.passwordHash)
+	var header []byte
+	var wasCR bool
+	for i := range hashLen + len(crlf) {
+		var err error
+		header, err = r.Peek(i + 1)
+		if err != nil {
+			if errors.IsIoEof(err) {
+				return false, nil
+			}
+			return false, errors.WithStack(err)
+		}
+
+		if i <= hashLen {
+			if wasCR {
+				// Read one line so our server behaves like a normal HTTP
+				// server.  If we encounter CRLF before reading enough bytes
+				// for the password hash, the request doesn't match the Trojan
+				// protocol format.
+				if header[i] == crlf[1] {
+					return false, nil
+				}
+			}
+			wasCR = header[i] == crlf[0]
+		}
+		// i == hashLen + 1 actually when the loop reaches the last element.
+		if wasCR && header[i] == crlf[1] {
+			return subtle.ConstantTimeCompare(header[:hashLen], s.passwordHash[:]) == 1, nil
+		}
+	}
+	return false, nil
+}
+
+// ServeAuthenticated serves the Trojan request on conn after HasPasswordHash
+// has found the password token at the start of r, which reads from conn.
+func (s *Server) ServeAuthenticated(ctx context.Context, r *bufio.Reader, conn net.Conn) error {
+	_, err := r.Discard(len(s.passwordHash) + len(crlf))
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
-	if len(lineBs) != 56 || subtle.ConstantTimeCompare(lineBs, s.passwordHash[:]) != 1 {
-		unreadBufSize := bufReader.Buffered()
-		unreadBs, err := bufReader.Peek(unreadBufSize)
-		if err != nil {
-			return errors.WithStack(err)
-		}
-		// Assume CRLF line endings (length = 2). This also works if the original
-		// request uses only LF and won't cause any security issues because we only
-		// forward the request to our internal web server.
-		unrelatedBs := pool.Get(len(lineBs) + 2 + len(unreadBs))[:0]
-		defer pool.Put(unrelatedBs)
-		unrelatedBs = append(unrelatedBs, lineBs...)
-		unrelatedBs = append(unrelatedBs, crlf...)
-		unrelatedBs = append(unrelatedBs, unreadBs...)
-		fallbackAddr := transport.NewSocketAddressByIP(new(netip.IPv6Loopback()), s.tlsBadAuthFallbackServerPort)
-		ctx := contextutil.WithValues(ctx, contextutil.InboundTag, "Trojan carrier with wrong auth")
-		ctx = contextutil.WithValues(ctx, contextutil.PolicyTag, conf.FallbackPolicy)
-		return transport.ForwardTCP(ctx, fallbackAddr, ioutil.NewBytesReadPreloadConn(unrelatedBs, conn), s.targetClient)
-	}
-
-	commandType, err := ioutil.Read1(bufReader)
+	commandType, err := ioutil.Read1(r)
 	if err != nil {
 		return err
 	}
 	if commandType != socks.ConnectionCommandConnect {
 		return errors.Newf("unsupported command type %v", commandType)
 	}
-	accessAddr, err := socks.ReadSOCKS5Address(bufReader)
+	accessAddr, err := socks.ReadSOCKS5Address(r)
 	if err != nil {
 		return err
 	}
 	crlfBs := make([]byte, 2)
-	_, err = ioutil.ReadFull(bufReader, crlfBs)
+	_, err = ioutil.ReadFull(r, crlfBs)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
-	unreadSize := bufReader.Buffered()
-	unreadBs, err := bufReader.Peek(unreadSize)
+	unreadSize := r.Buffered()
+	unreadBs, err := r.Peek(unreadSize)
 	if err != nil {
 		return errors.WithStack(err)
 	}

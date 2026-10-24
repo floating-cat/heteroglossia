@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"os"
 	"strings"
 
@@ -36,8 +37,8 @@ func IsIoEof(err error) bool {
 	return errors.Is(err, io.EOF)
 }
 
-func IsNetErrClosedOrContextCanceled(err error) bool {
-	return errors.Is(err, net.ErrClosed) || errors.Is(err, context.Canceled)
+func IsErrClosedOrContextCanceled(err error) bool {
+	return errors.Is(err, net.ErrClosed) || errors.Is(err, http.ErrServerClosed) || errors.Is(err, context.Canceled)
 }
 
 func Print(w io.Writer, err error) {

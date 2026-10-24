@@ -19,19 +19,23 @@ import (
 )
 
 type server struct {
-	httpSOCKS    *conf.HTTPSOCKS
-	targetClient transport.Client
+	httpSOCKS *conf.HTTPSOCKS
 
-	http  *http.Server
-	socks *socks.Server
+	http         *http.Server
+	socks        *socks.Server
+	targetClient transport.Client
 }
 
 var _ transport.Server = (*server)(nil)
 
 func NewServer(httpSOCKS *conf.HTTPSOCKS, targetClient transport.Client) transport.Server {
 	authInfo := httpSOCKS.ToHTTPSOCKSAuthInfo()
-	return &server{httpSOCKS, targetClient,
-		http.NewServer(authInfo, targetClient), socks.NewServer(authInfo, targetClient)}
+	return &server{
+		httpSOCKS,
+		http.NewServer(authInfo, targetClient),
+		socks.NewServer(authInfo, targetClient),
+		targetClient,
+	}
 }
 
 func (s *server) ListenAndServe(ctx context.Context) error {
@@ -44,17 +48,17 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 	// when using '::1' or '::'. See https://github.com/golang/go/issues/9334.
 	host := s.httpSOCKS.Host
 	connHandler := func(conn *net.TCPConn) {
-		err := s.Serve(ctx, conn)
+		err := s.serve(ctx, conn)
 		_ = conn.Close()
-		if err != nil {
+		if err != nil && ctx.Err() == nil {
 			log.InfoWithError("fail to handle a HTTP/SOCKS request", err)
 		}
 	}
 
-	var ipv4RequestsHandlerForDualstack func() error
+	var ipv4RequestsHandlerForDualStack func() error
 	if host == "::1" {
-		ipv4Localhost := netutil.JoinHostPort("127.0.0.1", s.httpSOCKS.Port)
-		ipv4RequestsHandlerForDualstack = func() error {
+		ipv4Localhost := netutil.JoinHostPort(netutil.IPv4Localhost, s.httpSOCKS.Port)
+		ipv4RequestsHandlerForDualStack = func() error {
 			return netutil.ListenTCPAndServe(ctx, ipv4Localhost, connHandler)
 		}
 	} else if host == "::" {
@@ -71,14 +75,14 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 				log.Info("try to set the system proxy")
 				// do not use the 'host' variable directly because we changed it for '::'
 				var err error
-				unsetProxyFunction, err := proxy.SetSystemProxy(s.httpSOCKS.Host, s.httpSOCKS.Port, s.httpSOCKS.ToHTTPSOCKSAuthInfo())
+				unsetProxyFunc, err := proxy.SetSystemProxy(s.httpSOCKS.Host, s.httpSOCKS.Port, s.httpSOCKS.ToHTTPSOCKSAuthInfo())
 				if err != nil {
 					log.WarnWithError("fail to set the system proxy", err)
 				}
-				if unsetProxyFunction != nil {
+				if unsetProxyFunc != nil {
 					unsetProxy = func() {
 						if hasUnsetProxy.CompareAndSwap(false, true) {
-							unsetProxyFunction()
+							unsetProxyFunc()
 						}
 					}
 					osutil.RegisterProgramTerminationHandler(func() {
@@ -91,10 +95,10 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 				unsetProxy()
 			}
 		})
-	}, ipv4RequestsHandlerForDualstack)
+	}, ipv4RequestsHandlerForDualStack)
 }
 
-func (s *server) Serve(ctx context.Context, conn net.Conn) error {
+func (s *server) serve(ctx context.Context, conn net.Conn) error {
 	b, err := ioutil.Read1(conn)
 	if err != nil {
 		return err

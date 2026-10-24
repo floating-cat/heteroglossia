@@ -2,6 +2,7 @@
   <configuration default="false" name="go all tests" type="GoTestRunConfiguration" factoryName="Go Test">
     <module name="heteroglossia" />
     <working_directory value="$PROJECT_DIR$" />
+    <parameters value="-test.timeout 5s" />
     <kind value="DIRECTORY" />
     <package value="github.com/floating-cat/heteroglossia" />
     <directory value="$PROJECT_DIR$" />

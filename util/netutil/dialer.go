@@ -9,9 +9,7 @@ import (
 	"github.com/quic-go/quic-go"
 )
 
-var (
-	dialer = net.Dialer{Timeout: dialerTimeout, KeepAliveConfig: KeepAliveConfig}
-)
+var dialer = net.Dialer{Timeout: dialerTimeout, KeepAliveConfig: keepAliveConfig}
 
 func dial(ctx context.Context, network, addr string) (net.Conn, error) {
 	return errors.WithStack2(dialer.DialContext(ctx, network, addr))

@@ -14,8 +14,7 @@ type Client interface {
 }
 
 func HTTPClientThroughRouter(client Client) *http.Client {
-	tr := http.DefaultTransport.(*http.Transport).Clone()
-	tr.Proxy = nil
+	tr := netutil.NewHTTPTransport()
 	tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		addrStr, err := toSocketAddrFromNetworkAddr(ctx, network, addr)
 		if err != nil {
@@ -25,5 +24,5 @@ func HTTPClientThroughRouter(client Client) *http.Client {
 		ctx = contextutil.WithSourceAndInboundValues(ctx, "hg binary itself (e.g., binary/rule file updates)", "internal HTTP Client")
 		return client.DialTCP(ctx, addrStr)
 	}
-	return netutil.HTTPClient(tr)
+	return netutil.NewHTTPClient(tr)
 }

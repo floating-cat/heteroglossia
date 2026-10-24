@@ -5,13 +5,18 @@ import (
 
 	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/transport"
+	"github.com/floating-cat/heteroglossia/transport/fallback_http"
 	"github.com/floating-cat/heteroglossia/util/testutil"
 )
 
-func TestClientServerConnection(t *testing.T) {
-	testutil.TestClientServerConnection(t, newClient, NewServer)
+func TestSQClientServerConnection(t *testing.T) {
+	testutil.TestClientServerConnection(t, newClient, newServer)
 }
 
 func newClient(proxyNode *conf.ProxyNode) (transport.Client, error) {
 	return NewClient(proxyNode, false)
+}
+
+func newServer(hg *conf.Hg, targetClient transport.Client, _ *fallback_http.Server) transport.Server {
+	return NewServer(hg, targetClient)
 }

@@ -15,6 +15,7 @@ type Server interface {
 func ForwardTCP(ctx context.Context, accessAddr *SocketAddress, srcRwc io.ReadWriteCloser, targetClient Client) error {
 	select {
 	case <-ctx.Done():
+		_ = srcRwc.Close()
 		return errors.WithStack(ctx.Err())
 	default:
 		targetConn, err := targetClient.DialTCP(ctx, accessAddr)

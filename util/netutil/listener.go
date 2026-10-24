@@ -7,18 +7,14 @@ import (
 	"net"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/quic-go/quic-go"
 )
 
 var (
-	listenConfig   = net.ListenConfig{KeepAliveConfig: KeepAliveConfig}
+	listenConfig   = net.ListenConfig{KeepAliveConfig: keepAliveConfig}
 	serverListener = sync.Map{}
-
-	httpReadTimeout  = 10 * time.Second
-	httpWriteTimeout = 10 * time.Second
 )
 
 func listenTCPAndAccept(ctx context.Context, addr string,
@@ -45,7 +41,7 @@ func listenTCPAndAccept(ctx context.Context, addr string,
 	}()
 
 	err = listenHandler(ln)
-	if errors.IsNetErrClosedOrContextCanceled(err) {
+	if errors.IsErrClosedOrContextCanceled(err) {
 		return nil
 	}
 	return err
@@ -67,39 +63,32 @@ func ListenTCPAndServeWithListenerCallback(ctx context.Context, addr string,
 	}, listenFinishedCallback)
 }
 
-func ListenHTTPAndServe(ctx context.Context, addr string, httpHandler http.Handler) error {
-	return ListenHTTPAndServeWithListenerCallback(ctx, addr, httpHandler, nil)
+func ListenUnencryptedHTTPAndServe(ctx context.Context, addr string, httpHandler http.Handler) error {
+	return ListenUnencryptedHTTPAndServeWithListenerCallback(ctx, addr, httpHandler, nil)
 }
 
-func ListenHTTPAndServeWithListenerCallback(ctx context.Context, addr string,
+func ListenUnencryptedHTTPAndServeWithListenerCallback(ctx context.Context, addr string,
 	httpHandler http.Handler, listenerCallback func(ln net.Listener)) error {
 	return listenTCPAndAccept(ctx, addr, func(ln net.Listener) error {
 		if listenerCallback != nil {
 			listenerCallback(ln)
 		}
-		protocols := new(http.Protocols)
-		protocols.SetHTTP1(true)
-		protocols.SetUnencryptedHTTP2(true)
-		server := &http.Server{
-			Handler:      httpHandler,
-			ReadTimeout:  httpReadTimeout,
-			WriteTimeout: httpWriteTimeout,
-			BaseContext:  func(net.Listener) context.Context { return ctx },
-			Protocols:    protocols,
-		}
+		server := NewUnencryptedHTTPServer(ctx, httpHandler)
 		return server.Serve(ln)
 	}, nil)
 }
 
 func ListenTLSAndAccept(ctx context.Context, addr string, tlsConfig *tls.Config,
-	connHandler func(conn net.Conn)) error {
+	connHandler func(conn *tls.Conn)) error {
 	return listenTCPAndAccept(ctx, addr, func(ln net.Listener) error {
 		tlsLn := tls.NewListener(ln, tlsConfig)
-		return acceptNetConn(tlsLn, connHandler)
+		return acceptNetConn(tlsLn, func(conn net.Conn) {
+			connHandler(conn.(*tls.Conn))
+		})
 	}, nil)
 }
 
-func ListenHTTPSAndServe(ctx context.Context, addr string, tlsConfig *tls.Config, server *http.Server) error {
+func ListenTLSAndServe(ctx context.Context, addr string, tlsConfig *tls.Config, server *http.Server) error {
 	return listenTCPAndAccept(ctx, addr, func(ln net.Listener) error {
 		return server.Serve(tls.NewListener(ln, tlsConfig))
 	}, nil)
@@ -142,7 +131,7 @@ func ListenQUICEarlyAndServe(ctx context.Context, addr string, tlsConf *tls.Conf
 	for {
 		conn, err := ln.Accept(ctx)
 		if err != nil {
-			if errors.IsNetErrClosedOrContextCanceled(err) {
+			if errors.IsErrClosedOrContextCanceled(err) {
 				return nil
 			}
 			return errors.WithStack(err)
@@ -189,3 +178,59 @@ func acceptNetConn(ln net.Listener, connHandler func(conn net.Conn)) error {
 		go connHandler(conn)
 	}
 }
+
+// ConnListener is a net.Listener that accepts the connections handed to Push
+// instead of ones from the network, so a server's accept loop can pass
+// connections to another server that only serves listeners, such as
+// http.Server.
+type ConnListener struct {
+	conn chan net.Conn
+	// ctx is done once l is closed, either by Close or by the parent context
+	// passed to NewConnListener being done.
+	ctx    context.Context
+	cancel context.CancelFunc
+}
+
+var _ net.Listener = (*ConnListener)(nil)
+
+// NewConnListener returns a listener that is closed when ctx is done. Close
+// must still be called to release it if ctx may never be done.
+func NewConnListener(ctx context.Context) *ConnListener {
+	ctx, cancel := context.WithCancel(ctx)
+	return &ConnListener{conn: make(chan net.Conn), ctx: ctx, cancel: cancel}
+}
+
+// Push blocks until conn is accepted from l, or closes conn if l is closed
+// first.
+func (l *ConnListener) Push(conn net.Conn) {
+	select {
+	case l.conn <- conn:
+	case <-l.ctx.Done():
+		_ = conn.Close()
+	}
+}
+
+func (l *ConnListener) Accept() (net.Conn, error) {
+	select {
+	case conn := <-l.conn:
+		return conn, nil
+	case <-l.ctx.Done():
+		return nil, errors.WithStack(net.ErrClosed)
+	}
+}
+
+func (l *ConnListener) Close() error {
+	l.cancel()
+	return nil
+}
+
+// Addr returns a placeholder because l isn't bound to an address; each
+// connection reports its own addresses.
+func (l *ConnListener) Addr() net.Addr {
+	return connListenerAddr{}
+}
+
+type connListenerAddr struct{}
+
+func (connListenerAddr) Network() string { return "conn" }
+func (connListenerAddr) String() string  { return "conn" }

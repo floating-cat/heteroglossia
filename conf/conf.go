@@ -146,7 +146,8 @@ func (pair *TLSCertKeyPair) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 
 	certKeyPairs := strings.Split(certKeyStr, " ")
 	if len(certKeyPairs) != 2 {
-		return errors.New("the certificate and key file's paths must be separated by whitespace, e.g. \"tls-cert-key-pair\" = \"tls_cert.pem tls_key.pem\"")
+		return errors.New("the certificate and key file's paths must be separated by whitespace," +
+			" e.g., \"tls-cert-key-pair\" = \"tls_cert.pem tls_key.pem\"")
 	}
 	pair.CertFile = certKeyPairs[0]
 	pair.KeyFile = certKeyPairs[1]
@@ -204,8 +205,4 @@ const (
 	DirectPolicy = "direct"
 	FinalPolicy  = "final"
 	RejectPolicy = "reject"
-	// FallbackPolicy isn't used in the JSON config; it’s used only for logging
-	// when a request doesn't match the proxy protocol and is handled by the
-	// internal web server as a fallback.
-	FallbackPolicy = "fallback"
 )

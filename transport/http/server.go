@@ -140,10 +140,10 @@ func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 
 		_ = relayConn.Close()
 		if rerr != nil {
-			log.InfoWithError("fail to read request", rerr)
+			log.InfoWithError("fail to relay the response", rerr)
 		}
 		if werr != nil {
-			log.InfoWithError("fail to write resp", werr)
+			log.InfoWithError("fail to relay the request", werr)
 		}
 	}()
 

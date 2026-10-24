@@ -43,7 +43,7 @@ func (c *serverQUICConn) handleStreams(conn *quic.Conn) {
 	for {
 		stream, err := conn.AcceptStream(c.ctx)
 		if err != nil {
-			if !errors.IsNetErrClosedOrContextCanceled(err) {
+			if !errors.IsErrClosedOrContextCanceled(err) {
 				log.InfoWithError("fail to accept a QUIC stream", errors.WithStack(err))
 			}
 			return
@@ -109,7 +109,7 @@ func (c *serverQUICConn) waitForAuthAndHandshake() error {
 	}
 	select {
 	case <-c.quicConn.Context().Done():
-		// connection closed before handshake completion, e.g. due to
+		// connection closed before handshake completion, e.g., due to
 		// handshake failure
 		return errors.WithStack(context.Cause(c.quicConn.Context()))
 	case <-c.quicConn.HandshakeComplete():

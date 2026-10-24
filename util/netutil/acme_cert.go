@@ -17,7 +17,7 @@ func tlsConfigWithAutomatedCertificate(ctx context.Context, host string) *tls.Co
 		RenewBefore: 10 * 24 * time.Hour,
 	}
 	go func() {
-		err := ListenHTTPAndServe(ctx, ":80", certManager.HTTPHandler(nil))
+		err := ListenUnencryptedHTTPAndServe(ctx, ":80", certManager.HTTPHandler(nil))
 		if err != nil {
 			log.Fatal("fail to start a HTTP server for automatic renewing certificate", err)
 		}

@@ -17,12 +17,10 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-const (
-	webServerHost   = "127.0.0.1"
-	proxyServerHost = "127.0.0.1"
-)
-
 var (
+	webServerHost   = netutil.IPv4Localhost
+	proxyServerHost = netutil.IPv4Localhost
+
 	correctAuthInfo = &conf.HTTPSOCKSAuthInfo{Username: "username", Password: "password"}
 	wrongAuthInfo   = &conf.HTTPSOCKSAuthInfo{Username: "username", Password: "password1"}
 )
@@ -85,7 +83,7 @@ func startProxyServer(t *testing.T, authInfo *conf.HTTPSOCKSAuthInfo, listenSucc
 				httpSOCKS = &conf.HTTPSOCKS{Username: authInfo.Username, Password: authInfo.Password}
 			}
 
-			err := (NewServer(httpSOCKS, direct.Client).(*server)).Serve(ctx, tcpConn)
+			err := (NewServer(httpSOCKS, direct.Client).(*server)).serve(ctx, tcpConn)
 			select {
 			case serverErr <- err:
 			case <-ctx.Done():
@@ -135,7 +133,7 @@ func startWebServer(t *testing.T) uint16 {
 	port := make(chan uint16, 1)
 
 	go func() {
-		err := netutil.ListenHTTPAndServeWithListenerCallback(t.Context(), ":0", mux, func(ln net.Listener) {
+		err := netutil.ListenUnencryptedHTTPAndServeWithListenerCallback(t.Context(), ":0", mux, func(ln net.Listener) {
 			port <- uint16(ln.Addr().(*net.TCPAddr).Port)
 		})
 		must.NoError(t, err)

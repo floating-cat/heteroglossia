@@ -15,7 +15,7 @@ import (
 type conn struct {
 	r          io.Reader
 	w          io.Writer
-	closeFn    func() error
+	closeFunc  func() error
 	closeWrite func() error
 	localAddr  net.Addr
 	remoteAddr net.Addr
@@ -24,7 +24,7 @@ type conn struct {
 var _ net.Conn = (*conn)(nil)
 var _ ioutil.CloseWriter = (*conn)(nil)
 
-func newConn(r io.Reader, w io.Writer, padding bool, closeFn, closeWrite func() error, local, remote net.Addr) *conn {
+func newConn(r io.Reader, w io.Writer, padding bool, closeFunc, closeWrite func() error, local, remote net.Addr) *conn {
 	if padding {
 		r = &paddingReader{r: r}
 		w = &paddingWriter{w: w}
@@ -32,7 +32,7 @@ func newConn(r io.Reader, w io.Writer, padding bool, closeFn, closeWrite func() 
 	return &conn{
 		r:          r,
 		w:          w,
-		closeFn:    closeFn,
+		closeFunc:  closeFunc,
 		closeWrite: closeWrite,
 		localAddr:  local,
 		remoteAddr: remote,
@@ -48,10 +48,10 @@ func (c *conn) Write(p []byte) (n int, err error) {
 }
 
 func (c *conn) Close() error {
-	if c.closeFn == nil {
+	if c.closeFunc == nil {
 		return nil
 	}
-	return c.closeFn()
+	return c.closeFunc()
 }
 
 func (c *conn) CloseWrite() error {
