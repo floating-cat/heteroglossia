@@ -57,9 +57,9 @@ func TestServerRejectsPlainHTTP(t *testing.T, newServer newServerFunc) {
 	addr := "http://" + netutil.JoinHostPort(hg.Host, hg.TLSPort)
 
 	resp := testRequest(t, netutil.NewHTTPClient(netutil.NewHTTPTransport()), addr)
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	must.EqOp(t, http.StatusBadRequest, resp.StatusCode)
 	body, err := io.ReadAll(resp.Body)

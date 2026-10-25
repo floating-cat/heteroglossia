@@ -17,9 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/floating-cat/heteroglossia/util/cli"
 	"github.com/floating-cat/heteroglossia/util/errors"
-	"github.com/floating-cat/heteroglossia/util/log"
 )
 
 func needUpdateFile(filepath string, needUpdateInterval time.Duration) (bool, error) {
@@ -74,7 +72,8 @@ func updateFile(client *http.Client, filePath, fileURL, fileSHA256SumURL string)
 		}
 		newDownloadHgBinaryFile, err := os.Open(newDownloadHgBinaryPath)
 		if err != nil {
-			return err
+			_ = os.Remove(newDownloadHgBinaryPath)
+			return errors.WithStack(err)
 		}
 		defer func() {
 			_ = newDownloadHgBinaryFile.Close()
@@ -156,8 +155,9 @@ func verifyRulesFileSHA256Sum(file *os.File, sha256SumFile *os.File, filename st
 	return nil
 }
 
+// extractHgBinaryTarGz extracts only the hg binary from tarGzFile into a new
+// temp file and returns its path. The caller owns the returned file.
 func extractHgBinaryTarGz(tarGzFile *os.File) (string, error) {
-	targetDir := filepath.Dir(tarGzFile.Name())
 	gzipReader, err := gzip.NewReader(tarGzFile)
 	if err != nil {
 		return "", errors.WithStack(err)
@@ -167,49 +167,45 @@ func extractHgBinaryTarGz(tarGzFile *os.File) (string, error) {
 	}()
 
 	tarReader := tar.NewReader(gzipReader)
-	var header *tar.Header
-	newDownloadHgBinaryPath := ""
 	for {
-		header, err = tarReader.Next()
+		header, err := tarReader.Next()
 		if errors.IsIoEof(err) {
-			if newDownloadHgBinaryPath == "" {
-				return "", errors.Newf("fail to find the hg binary in the downloaded compressed file %v",
-					tarGzFile.Name())
-			}
-			return newDownloadHgBinaryPath, nil
+			return "", errors.Newf("fail to find the %v binary in the downloaded compressed file %v",
+				hgBinaryName, tarGzFile.Name())
 		}
 		if err != nil {
 			return "", errors.WithStack(err)
 		}
-
-		target := filepath.Join(targetDir, header.Name)
-		switch header.Typeflag {
-		case tar.TypeReg:
-			uncompressedFile, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY, os.FileMode(header.Mode))
-			if err != nil {
-				return "", errors.WithStack(err)
-			}
-			//goland:noinspection GoDeferInLoop
-			defer func(file *os.File) {
-				err := file.Close()
-				if err != nil {
-					log.WarnWithError("fail to close the file when extracting", err,
-						"tar.gz file", tarGzFile.Name(), "uncompressed file name", header.Name)
-				}
-			}(uncompressedFile)
-
-			_, err = io.Copy(uncompressedFile, tarReader)
-			if err != nil {
-				return "", errors.WithStack(err)
-			}
-			if strings.Contains(uncompressedFile.Name(), cli.AppName) {
-				newDownloadHgBinaryPath = uncompressedFile.Name()
-			}
-		default:
-			log.Warn("unknown type of the header when extracting",
-				"tar.gz file", tarGzFile.Name(), "uncompressed file name", header.Name, "header type", header.Typeflag)
+		if header.Typeflag == tar.TypeReg && path.Base(header.Name) == hgBinaryName {
+			return extractToTempFile(tarReader, header.FileInfo().Mode().Perm())
 		}
 	}
+}
+
+func extractToTempFile(src io.Reader, perm os.FileMode) (_ string, err error) {
+	file, err := os.CreateTemp("", hgBinaryName)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+	defer func() {
+		closeErr := file.Close()
+		if err == nil && closeErr != nil {
+			err = errors.WithStack(closeErr)
+		}
+		if err != nil {
+			_ = os.Remove(file.Name())
+		}
+	}()
+
+	_, err = io.Copy(file, src)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+	err = file.Chmod(perm)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+	return file.Name(), nil
 }
 
 func replaceFile(src *os.File, dstFilepath string) error {

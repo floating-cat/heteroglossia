@@ -19,6 +19,15 @@ const (
 	hgBinaryURLSHA256SumURLTemplate = "https://github.com/floating-cat/heteroglossia/releases/download/%v/sha256sums.txt"
 )
 
+// hgBinaryName is the binary name inside the release archive, which must match
+// the binary name in the .goreleaser.yaml file.
+var hgBinaryName = func() string {
+	if runtime.GOOS == "windows" {
+		return "hg.exe"
+	}
+	return "hg"
+}()
+
 func UpdateHgBinary(client *http.Client) (bool, string, error) {
 	currentVersion := "v" + cli.Version
 	if !semver.IsValid(currentVersion) {

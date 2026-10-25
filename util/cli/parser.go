@@ -9,7 +9,7 @@ import (
 )
 
 func Parse() Args {
-	fs := flag.NewFlagSet(AppName, flag.ExitOnError)
+	fs := flag.NewFlagSet(appName, flag.ExitOnError)
 	var showVersion bool
 	fs.BoolVar(&showVersion, "version", false, "")
 	fs.BoolVar(&showVersion, "v", false, "")
@@ -31,13 +31,13 @@ Options:
   -db DB_FILE            domain & IP set rules database file to use
   -h, --help             display this help and exit
   -i, --info             display connection info of CONFIG_FILE and exit
-  -v, --version          display version and exit`, AppName+"(hg) "+Version, AppName)
+  -v, --version          display version and exit`, appName+"(hg) "+Version, appName)
 		_, _ = fmt.Fprintln(fs.Output(), usage)
 	}
 
 	_ = fs.Parse(os.Args[1:])
 	if showVersion {
-		fmt.Println(AppName + "(hg) " + Version)
+		fmt.Println(appName + "(hg) " + Version)
 		osutil.Exit(0)
 	}
 	if len(fs.Args()) == 0 {
@@ -54,7 +54,7 @@ type Args struct {
 	ShowInfo bool
 }
 
-const AppName = "heteroglossia"
+const appName = "heteroglossia"
 
 // Version needs to be a variable to be used with -ldflags
 var Version = "(unknown version)" // without the v prefix

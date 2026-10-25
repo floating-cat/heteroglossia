@@ -125,10 +125,10 @@ func (c *client) sendAuthenticationCommand(conn *quic.Conn) error {
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	defer func(stream *quic.Stream) {
+	defer func() {
 		stream.CancelRead(streamConnCloseErrCode)
 		_ = stream.Close()
-	}(stream)
+	}()
 
 	authCmdBs := pool.Get(1 + len(c.authHash))
 	defer pool.Put(authCmdBs)
