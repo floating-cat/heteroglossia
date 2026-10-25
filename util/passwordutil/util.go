@@ -15,12 +15,10 @@ const (
 	DefaultUsername = "hg"
 )
 
-func Derive(password []byte, info string) []byte {
-	return DeriveN(password, info, defaultKeyLen)
-}
+var salt = []byte("hg-app-salt-v1")
 
 func DeriveN(password []byte, info string, keyLen int) []byte {
-	derived, err := hkdf.Key(sha256.New, password, nil, info, keyLen)
+	derived, err := hkdf.Key(sha256.New, password, salt, info, keyLen)
 	if err != nil {
 		log.Fatal("unexpected code path", err)
 	}

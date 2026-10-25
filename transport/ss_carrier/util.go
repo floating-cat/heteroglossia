@@ -19,12 +19,16 @@ import (
 const (
 	gcmTagOverhead = 16
 
+	// 2022-blake3-aes-128-gcm key is 16 bytes
+	// https://github.com/Shadowsocks-NET/shadowsocks-specs/blob/main/2022-1-shadowsocks-2022-edition.md#21-psk
+	blake3Aes128GcmKeySize = 16
+
 	// Method is the Shadowsocks 2022 method name that clients need to use.
 	Method = "2022-blake3-aes-128-gcm"
 )
 
 func toShadowsocksSharedKey(password *conf.Password) []byte {
-	return passwordutil.Derive(password[:], "hg/shadowsocks/auth-shared-key/v1")
+	return passwordutil.DeriveN(password[:], "hg/shadowsocks/auth-shared-key/v1", blake3Aes128GcmKeySize)
 }
 
 func AuthPassword(password *conf.Password) string {
