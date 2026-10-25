@@ -1,7 +1,7 @@
 {
   "inbounds": {
     "http-socks": {
-      "host": "::1",
+      "listen-host": "127.0.0.1",
       "port": 51080,
       "username": "username",
       "password": "password",

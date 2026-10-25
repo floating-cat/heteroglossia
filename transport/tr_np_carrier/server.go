@@ -24,9 +24,9 @@ import (
 // to the NaiveProxy server, which serves the fallback site to everything but
 // authenticated HTTP/2 CONNECT requests.
 type server struct {
-	host           string
-	port           uint16
-	tlsCertKeyPair *conf.TLSCertKeyPair
+	listenHostWithPort string
+	host               string
+	tlsCertKeyPair     *conf.TLSCertKeyPair
 
 	trojan     *tr_carrier.Server
 	naiveproxy *np_carrier.Server
@@ -36,8 +36,8 @@ var _ transport.Server = (*server)(nil)
 
 func NewServer(hg *conf.Hg, targetClient transport.Client, fallbackHttpServer *fallback_http.Server) transport.Server {
 	return &server{
+		netutil.JoinHostPort(hg.ListenHost, hg.TLSPort),
 		hg.Host,
-		hg.TLSPort,
 		hg.TLSCertKeyPair,
 		tr_carrier.NewServer(hg, targetClient, fallbackHttpServer),
 		np_carrier.NewServer(hg, targetClient, fallbackHttpServer),
@@ -61,8 +61,7 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 		}
 	}()
 
-	hostWithPort := netutil.JoinHostPort(s.host, s.port)
-	return netutil.ListenTLSAndAccept(ctx, hostWithPort, tlsConfig, func(conn *tls.Conn) {
+	return netutil.ListenTLSAndAccept(ctx, s.listenHostWithPort, tlsConfig, func(conn *tls.Conn) {
 		err := s.serve(ctx, conn, naiveproxyLn)
 		if err != nil && ctx.Err() == nil {
 			log.InfoWithError("fail to handle a connection", err)

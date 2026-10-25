@@ -50,11 +50,11 @@ func Start(ctx context.Context, hg *conf.Hg, targetClient transport.Client) (*Se
 	}
 }
 
-const policy = "fallback (e.g., wrong protocol or auth)"
+const fallbackPolicy = "fallback (e.g., wrong protocol or auth)"
 
 func (s *Server) Handle(ctx context.Context, conn net.Conn, inbound string) error {
 	ctx = contextutil.WithValues(ctx, contextutil.InboundTag, inbound)
-	ctx = contextutil.WithValues(ctx, contextutil.PolicyTag, policy)
+	ctx = contextutil.WithValues(ctx, contextutil.PolicyTag, fallbackPolicy)
 	fallbackHost := netip.MustParseAddr(netutil.IPv4Localhost)
 	fallbackAddr := transport.NewSocketAddressByIP(&fallbackHost, s.tlsBadAuthFallbackSitePort)
 	return transport.ForwardTCP(ctx, fallbackAddr, conn, s.targetClient)
@@ -64,6 +64,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request, targetAddr st
 	log.Info("routing",
 		contextutil.SourceTag, r.RemoteAddr,
 		contextutil.InboundTag, inbound,
-		contextutil.AccessTag, targetAddr, contextutil.PolicyTag, policy)
+		contextutil.AccessTag, targetAddr, contextutil.PolicyTag, fallbackPolicy)
 	s.httpHandler.ServeHTTP(w, r)
 }

@@ -1,6 +1,7 @@
 package np_carrier
 
 import (
+	"cmp"
 	"context"
 	"net"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 )
 
 type Server struct {
+	listenHost     string
 	host           string
 	port           uint16
 	authToken      string
@@ -28,6 +30,7 @@ var _ transport.Server = (*Server)(nil)
 
 func NewServer(hg *conf.Hg, targetClient transport.Client, fallbackHttpServer *fallback_http.Server) *Server {
 	return &Server{
+		hg.ListenHost,
 		hg.Host,
 		hg.TLSPort,
 		basicAuthToken(hg.Password),
@@ -42,7 +45,7 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return netutil.ListenTLSAndServe(ctx, netutil.JoinHostPort(s.host, s.port), tlsConfig, s.newHTTPServer(ctx))
+	return netutil.ListenTLSAndServe(ctx, netutil.JoinHostPort(s.listenHost, s.port), tlsConfig, s.newHTTPServer(ctx))
 }
 
 // Serve serves the connections accepted from ln until ln is closed. They must
@@ -70,7 +73,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	// HTTP/1.1 is accepted as well and always gets the fallback site.
 	if r.ProtoMajor != 2 ||
 		r.Method != http.MethodConnect || !basicAuthEqual(r.Header.Get(proxyAuthHeaderKey), s.authToken) {
-		s.fallbackHttpServer.ServeHTTP(w, r, netutil.JoinHostPort(s.host, s.port), "NaiveProxy carrier")
+		s.fallbackHttpServer.ServeHTTP(w, r, cmp.Or(r.URL.Host, r.Host), "NaiveProxy carrier")
 		return
 	}
 

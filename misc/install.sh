@@ -83,7 +83,7 @@ if [[ "$yN" =~ ^(y|yes)$ ]]; then
 {
   "inbounds" : {
     "http-socks" : {
-      "host" : "::1",
+      "listen-host" : "127.0.0.1",
       "port" : 1080
     }
   },
@@ -104,6 +104,7 @@ END
 {
   "inbounds" : {
     "hg" : {
+      "listen-host" : "0.0.0.0",
       "host" : "$domain",
       "password" : "$password",
       "tls-bad-auth-fallback-site-dir" : "site"

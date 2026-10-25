@@ -12,9 +12,9 @@ import (
 )
 
 type server struct {
-	hostWithPort string
-	preSharedKey []byte
-	aeadOverhead int
+	listenHostWithPort string
+	preSharedKey       []byte
+	aeadOverhead       int
 	// We can use '[16]byte' here actually, but we still use string here
 	// because we may support "2022-blake3-aes-256-gcm" later which uses '[32]byte'.
 	saltPool *saltPool[string]
@@ -26,7 +26,7 @@ var _ transport.Server = (*server)(nil)
 
 func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
 	return &server{
-		netutil.JoinHostPort(hg.Host, *hg.TCPPort),
+		netutil.JoinHostPort(hg.ListenHost, *hg.TCPPort),
 		toShadowsocksSharedKey(hg.Password),
 		gcmTagOverhead,
 		newSaltPool[string](),
@@ -35,7 +35,7 @@ func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
 }
 
 func (s *server) ListenAndServe(ctx context.Context) error {
-	return netutil.ListenTCPAndServe(ctx, s.hostWithPort, func(conn *net.TCPConn) {
+	return netutil.ListenTCPAndServe(ctx, s.listenHostWithPort, func(conn *net.TCPConn) {
 		connCtx := contextutil.WithSourceAndInboundValues(ctx, conn.RemoteAddr().String(), "Shadowsocks carrier")
 		err := s.serve(connCtx, conn)
 		_ = conn.Close()

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"maps"
@@ -42,35 +43,35 @@ the "password" field. Use the passwords below when configuring other clients.`)
 
 	_, _ = fmt.Fprintln(tw, "\nInbounds:")
 	httpSOCKS := config.Inbounds.HTTPSOCKS
-	// Only HTTP/SOCKS can be set as the system proxy, so the SYSTEM PROXY
-	// column is shown only along with it.
-	printInfoHeader(tw, httpSOCKS != nil)
+	hg := config.Inbounds.Hg
+	// Only hg has a "host" field in inbounds, and only HTTP/SOCKS can be set
+	// as the system proxy, so the HOST and SYSTEM PROXY columns are shown only
+	// along with them in inbounds header.
+	inboundColumns := extraColumns{host: hg != nil, listenHost: true, systemProxy: httpSOCKS != nil}
+	printInfoHeader(tw, inboundColumns)
 	if httpSOCKS != nil {
 		systemProxy := "off"
 		if httpSOCKS.SystemProxy {
 			systemProxy = "on"
 		}
-		printInfoRows(tw, "http-socks", httpSOCKS.Host,
+		// "*" is used in the LISTEN HOST column when it listens on all interfaces.
+		printInfoRows(tw, inboundColumns, "http-socks", "-", cmp.Or(httpSOCKS.ListenHost, "*"),
 			[]protocolInfo{{"HTTP/SOCKS", "TCP", httpSOCKS.Port, httpSOCKS.Username, httpSOCKS.Password}},
 			systemProxy)
 	}
-	hg := config.Inbounds.Hg
 	if hg != nil {
-		hgSystemProxy := ""
-		if httpSOCKS != nil {
-			hgSystemProxy = "-"
-		}
-		printInfoRows(tw, "hg", hg.Host,
+		printInfoRows(tw, inboundColumns, "hg", hg.Host, cmp.Or(hg.ListenHost, "*"),
 			carrierInfos(hg.Password, hg.TCPPort, hg.TLSPort, hg.QUICPort),
-			hgSystemProxy)
+			"-")
 	}
 
 	if len(config.Outbounds) != 0 {
 		_, _ = fmt.Fprintln(tw, "\nOutbounds:")
-		printInfoHeader(tw, false)
+		outboundColumns := extraColumns{host: true}
+		printInfoHeader(tw, outboundColumns)
 		for _, name := range slices.Sorted(maps.Keys(config.Outbounds)) {
 			node := config.Outbounds[name]
-			printInfoRows(tw, name, node.Host,
+			printInfoRows(tw, outboundColumns, name, node.Host, "",
 				carrierInfos(node.Password, node.TCPPort, node.TLSPort, node.QUICPort),
 				"")
 		}
@@ -83,25 +84,47 @@ the "password" field. Use the passwords below when configuring other clients.`)
 	_ = tw.Flush()
 }
 
-func printInfoHeader(w io.Writer, systemProxyColumn bool) {
-	header := "  NAME\tHOST\tPROTOCOL\tNETWORK\tPORT\tUSERNAME\tPASSWORD"
-	if systemProxyColumn {
+type extraColumns struct {
+	host        bool
+	listenHost  bool
+	systemProxy bool
+}
+
+func printInfoHeader(w io.Writer, columns extraColumns) {
+	header := "  NAME"
+	if columns.host {
+		header += "\tHOST"
+	}
+	if columns.listenHost {
+		header += "\tLISTEN HOST"
+	}
+	header += "\tPROTOCOL\tNETWORK\tPORT\tUSERNAME\tPASSWORD"
+	if columns.systemProxy {
 		header += "\tSYSTEM PROXY"
 	}
 	_, _ = fmt.Fprintln(w, header)
 }
 
-// printInfoRows prints a row for each of infos, with name and host only on the
-// first row because they are the same for all of them. systemProxy is printed
-// in the SYSTEM PROXY column for http-socks inbound.
-func printInfoRows(w io.Writer, name string, host string, infos []protocolInfo, systemProxy string) {
+// printInfoRows prints a row for each of infos, with name, host, and listenHost
+// only on the first row because they are the same for all of them. Only the
+// columns in columns are printed, so the rows match the header printed by
+// printInfoHeader with the same columns.
+func printInfoRows(w io.Writer, columns extraColumns, name, host, listenHost string,
+	infos []protocolInfo, systemProxy string) {
 	for i, info := range infos {
 		if i > 0 {
-			name, host = "", ""
+			name, host, listenHost = "", "", ""
 		}
-		_, _ = fmt.Fprintf(w, "  %v\t%v\t%v\t%v\t%v\t%v\t%v",
-			name, host, info.protocol, info.network, info.port, info.username, info.password)
-		if systemProxy != "" {
+		_, _ = fmt.Fprintf(w, "  %v", name)
+		if columns.host {
+			_, _ = fmt.Fprintf(w, "\t%v", host)
+		}
+		if columns.listenHost {
+			_, _ = fmt.Fprintf(w, "\t%v", listenHost)
+		}
+		_, _ = fmt.Fprintf(w, "\t%v\t%v\t%v\t%v\t%v",
+			info.protocol, info.network, info.port, info.username, info.password)
+		if columns.systemProxy {
 			_, _ = fmt.Fprintf(w, "\t%v", systemProxy)
 		}
 		_, _ = fmt.Fprintln(w)

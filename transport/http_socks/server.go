@@ -1,6 +1,7 @@
 package http_socks
 
 import (
+	"cmp"
 	"context"
 	"net"
 	"sync/atomic"
@@ -37,15 +38,6 @@ func NewServer(httpSOCKS *conf.HTTPSOCKS, targetClient transport.Client) transpo
 }
 
 func (s *server) ListenAndServe(ctx context.Context) error {
-	// When one listener returns, cancel the context, so the sibling listener
-	// shuts down instead of running unsupervised.
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	// can't listen to IPv4 & IPv6 together, so also listen to IPv4 one
-	// when using '::1' or '::'.
-	// https://github.com/golang/go/issues/9334
-	host := s.httpSOCKS.Host
 	connHandler := func(conn *net.TCPConn) {
 		err := s.serve(ctx, conn)
 		_ = conn.Close()
@@ -54,47 +46,33 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 		}
 	}
 
-	var ipv4RequestsHandlerForDualStack func() error
-	if host == "::1" {
-		ipv4Localhost := netutil.JoinHostPort(netutil.IPv4Localhost, s.httpSOCKS.Port)
-		ipv4RequestsHandlerForDualStack = func() error {
-			return netutil.ListenTCPAndServe(ctx, ipv4Localhost, connHandler)
-		}
-	} else if host == "::" {
-		// It would listen both IPv4 & IPv6 when using the empty string for host.
-		host = ""
-	}
-
-	return parRunWithFirstErrReturn(cancel, func() error {
-		var unsetProxy func()
-		var hasUnsetProxy atomic.Bool
-		addr := netutil.JoinHostPort(host, s.httpSOCKS.Port)
-		return netutil.ListenTCPAndServeWithListenerCallback(ctx, addr, connHandler, func(net.Listener) {
-			if s.httpSOCKS.SystemProxy {
-				log.Info("try to set the system proxy")
-				// do not use the 'host' variable directly because we changed it for '::'
-				var err error
-				unsetProxyFunc, err := proxy.SetSystemProxy(s.httpSOCKS.Host, s.httpSOCKS.Port, s.httpSOCKS.ToHTTPSOCKSAuthInfo())
-				if err != nil {
-					log.WarnWithError("fail to set the system proxy", err)
-				}
-				if unsetProxyFunc != nil {
-					unsetProxy = func() {
-						if hasUnsetProxy.CompareAndSwap(false, true) {
-							unsetProxyFunc()
-						}
+	var unsetProxy func()
+	var hasUnsetProxy atomic.Bool
+	listenHost := s.httpSOCKS.ListenHost
+	addr := netutil.JoinHostPort(listenHost, s.httpSOCKS.Port)
+	return netutil.ListenTCPAndServeWithListenerCallback(ctx, addr, connHandler, func(net.Listener) {
+		if s.httpSOCKS.SystemProxy {
+			log.Info("try to set the system proxy")
+			unsetProxyFunc, err := proxy.SetSystemProxy(cmp.Or(s.httpSOCKS.ListenHost, netutil.IPv4Localhost), s.httpSOCKS.Port, s.httpSOCKS.ToHTTPSOCKSAuthInfo())
+			if err != nil {
+				log.WarnWithError("fail to set the system proxy", err)
+			}
+			if unsetProxyFunc != nil {
+				unsetProxy = func() {
+					if hasUnsetProxy.CompareAndSwap(false, true) {
+						unsetProxyFunc()
 					}
-					osutil.RegisterProgramTerminationHandler(func() {
-						unsetProxy()
-					})
 				}
+				osutil.RegisterProgramTerminationHandler(func() {
+					unsetProxy()
+				})
 			}
-		}, func() {
-			if unsetProxy != nil {
-				unsetProxy()
-			}
-		})
-	}, ipv4RequestsHandlerForDualStack)
+		}
+	}, func() {
+		if unsetProxy != nil {
+			unsetProxy()
+		}
+	})
 }
 
 func (s *server) serve(ctx context.Context, conn net.Conn) error {
@@ -112,29 +90,4 @@ func (s *server) serve(ctx context.Context, conn net.Conn) error {
 		// assume this is an HTTP proxy request
 		return s.http.Serve(ctx, conn)
 	}
-}
-
-func parRunWithFirstErrReturn(cancel context.CancelFunc, f1 func() error, f2 func() error) error {
-	if f1 == nil {
-		return f2()
-	}
-	if f2 == nil {
-		return f1()
-	}
-
-	ch := make(chan error, 2)
-	go func() {
-		ch <- f1()
-	}()
-	go func() {
-		ch <- f2()
-	}()
-
-	err := <-ch
-	// Stop the sibling listener so it doesn't keep its socket bound and its
-	// goroutine running after the first one has returned.
-	cancel()
-	// Drain the sibling's result so its goroutine doesn't leak.
-	<-ch
-	return err
 }

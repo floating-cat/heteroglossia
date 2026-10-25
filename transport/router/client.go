@@ -3,6 +3,7 @@ package router
 import (
 	"cmp"
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"net/netip"
@@ -109,6 +110,9 @@ func (c *client) DialTCP(ctx context.Context, addr *transport.SocketAddress) (ne
 		if err != nil {
 			return nil, err
 		}
+		// Only outbounds are reached over a transport, and a policy can name an
+		// outbound only when routing is configured, so c.routing isn't nil here.
+		policy = fmt.Sprintf("%v (over %v)", policy, c.routing.Transport.Protocol())
 	}
 	log.Info("routing",
 		contextutil.SourceTag, ctx.Value(contextutil.SourceTag),

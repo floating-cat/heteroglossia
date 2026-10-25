@@ -23,7 +23,7 @@ type Inbounds struct {
 }
 
 type HTTPSOCKS struct {
-	Host        string `json:"host"`
+	ListenHost  string `json:"listen-host"`
 	Port        uint16 `json:"port"`
 	Username    string `json:"username"`
 	Password    string `json:"password"`
@@ -43,6 +43,7 @@ func (httpSOCKS *HTTPSOCKS) ToHTTPSOCKSAuthInfo() *HTTPSOCKSAuthInfo {
 }
 
 type Hg struct {
+	ListenHost                string          `json:"listen-host"`
 	Host                      string          `json:"host"`
 	Password                  *Password       `json:"password"`
 	TCPPort                   *uint16         `json:"tcp-port"`
@@ -108,6 +109,21 @@ type Transport struct {
 }
 
 type TCPTransport string
+
+func (t *Transport) Protocol() string {
+	switch t.TCP {
+	case ShadowsocksTransport, ShadowsocksTransportAlias:
+		return "Shadowsocks"
+	case TrojanTransport, TrojanTransportAlias:
+		return "Trojan"
+	case NaiveProxyTransport, NaiveProxyTransportAlias:
+		return "NaiveProxy"
+	case SunnyQUICTransport, SunnyQUICTransportAlias:
+		return "SunnyQUIC"
+	default:
+		panic("unreachable code line")
+	}
+}
 
 type Rules []Rule
 

@@ -11,11 +11,11 @@ import (
 )
 
 type server struct {
-	host              string
-	port              uint16
-	tlsCertKeyPair    *conf.TLSCertKeyPair
-	authHash          [64]byte
-	statelessResetKey *quic.StatelessResetKey
+	listenHostWithPort string
+	host               string
+	tlsCertKeyPair     *conf.TLSCertKeyPair
+	authHash           [64]byte
+	statelessResetKey  *quic.StatelessResetKey
 
 	targetClient transport.Client
 }
@@ -24,8 +24,8 @@ var _ transport.Server = (*server)(nil)
 
 func NewServer(hg *conf.Hg, targetClient transport.Client) transport.Server {
 	return &server{
+		netutil.JoinHostPort(hg.ListenHost, hg.QUICPort),
 		hg.Host,
-		hg.QUICPort,
 		hg.TLSCertKeyPair,
 		toSunnyQUICAuthHash(hg.Password),
 		toStatelessResetKey(hg.Password),
@@ -39,8 +39,7 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 		return err
 	}
 
-	hostWithPort := netutil.JoinHostPort(s.host, s.port)
-	return netutil.ListenQUICEarlyAndServe(ctx, hostWithPort, tlsConfig, s.statelessResetKey, func(quicConn *quic.Conn) {
+	return netutil.ListenQUICEarlyAndServe(ctx, s.listenHostWithPort, tlsConfig, s.statelessResetKey, func(quicConn *quic.Conn) {
 		connCtx := contextutil.WithSourceAndInboundValues(ctx, quicConn.RemoteAddr().String(), "SunnyQUIC carrier")
 		s.serve(connCtx, quicConn)
 	})

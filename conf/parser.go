@@ -57,9 +57,9 @@ func validate(config *Config) error {
 	var portRules = govy.NewRuleSet(rules.GTE[uint16](1), rules.LTE[uint16](65535))
 
 	var httpSOCKSValidator = govy.New(
-		govy.For(func(h HTTPSOCKS) string { return h.Host }).
-			WithName("host").
-			Required().
+		govy.For(func(h HTTPSOCKS) string { return h.ListenHost }).
+			WithName("listen-host").
+			OmitEmpty().
 			Rules(hostRule),
 		govy.For(func(h HTTPSOCKS) uint16 { return h.Port }).
 			WithName("port").
@@ -67,6 +67,10 @@ func validate(config *Config) error {
 	)
 
 	var hgValidator = govy.New(
+		govy.For(func(h Hg) string { return h.ListenHost }).
+			WithName("listen-host").
+			OmitEmpty().
+			Rules(hostRule),
 		govy.For(func(h Hg) string { return h.Host }).
 			WithName("host").
 			Required().

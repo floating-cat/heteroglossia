@@ -20,10 +20,10 @@ import (
 )
 
 type Server struct {
-	host           string
-	port           uint16
-	passwordHash   [56]byte
-	tlsCertKeyPair *conf.TLSCertKeyPair
+	listenHostWithPort string
+	host               string
+	passwordHash       [56]byte
+	tlsCertKeyPair     *conf.TLSCertKeyPair
 
 	targetClient       transport.Client
 	fallbackHttpServer *fallback_http.Server
@@ -33,8 +33,8 @@ var _ transport.Server = (*Server)(nil)
 
 func NewServer(hg *conf.Hg, targetClient transport.Client, fallbackHttpServer *fallback_http.Server) *Server {
 	return &Server{
+		netutil.JoinHostPort(hg.ListenHost, hg.TLSPort),
 		hg.Host,
-		hg.TLSPort,
 		toTrojanPasswordHash(hg.Password),
 		hg.TLSCertKeyPair,
 		targetClient,
@@ -48,8 +48,7 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 		return err
 	}
 
-	hostWithPort := netutil.JoinHostPort(s.host, s.port)
-	return netutil.ListenTLSAndAccept(ctx, hostWithPort, tlsConfig, func(conn *tls.Conn) {
+	return netutil.ListenTLSAndAccept(ctx, s.listenHostWithPort, tlsConfig, func(conn *tls.Conn) {
 		connCtx := contextutil.WithSourceAndInboundValues(ctx, conn.RemoteAddr().String(), "Trojan carrier")
 		err := s.serve(connCtx, conn)
 		_ = conn.Close()

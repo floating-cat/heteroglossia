@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/floating-cat/heteroglossia/util/log"
 	"github.com/floating-cat/heteroglossia/util/strutil"
 	"github.com/quic-go/quic-go"
 )
@@ -44,7 +43,6 @@ func NewHTTPServer(ctx context.Context, connContext func(ctx context.Context, c 
 		Handler:           handler,
 		ReadHeaderTimeout: httpReadHeaderTimeout,
 		IdleTimeout:       httpServerIdleTimeout,
-		ErrorLog:          log.NewStdLogger(),
 		BaseContext:       func(net.Listener) context.Context { return ctx },
 		ConnContext:       connContext,
 		HTTP2: &http.HTTP2Config{
@@ -64,7 +62,6 @@ func NewUnencryptedHTTPServer(ctx context.Context, handler http.Handler) *http.S
 		Handler:           handler,
 		ReadHeaderTimeout: httpReadHeaderTimeout,
 		IdleTimeout:       httpServerIdleTimeout,
-		ErrorLog:          log.NewStdLogger(),
 		BaseContext:       func(net.Listener) context.Context { return ctx },
 		Protocols:         protocols,
 	}

@@ -1,7 +1,8 @@
 {
   "inbounds": {
     "hg": {
-      "host": "0.0.0.0",
+      "listen-host": "127.0.0.1",
+      "host": "localhost",
       "password": "66cac28e26cd4d6faf944821c702fadb",
       "tcp-port": 51081,
       "tls-port": 51082,
