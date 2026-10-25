@@ -18,7 +18,7 @@
       "quic-port": 51083
     },
     "node2": {
-      "host": "example.org",
+      "host": "example.com",
       "password": "de6a4bc38b10e27f2da1b67ee81e6147",
       "tcp-port": 51084
     }

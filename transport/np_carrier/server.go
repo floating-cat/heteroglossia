@@ -30,7 +30,7 @@ func NewServer(hg *conf.Hg, targetClient transport.Client, fallbackHttpServer *f
 	return &Server{
 		hg.Host,
 		hg.TLSPort,
-		basicAuthToken(hg.Password[:]),
+		basicAuthToken(hg.Password),
 		hg.TLSCertKeyPair,
 		targetClient,
 		fallbackHttpServer,

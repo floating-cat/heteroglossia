@@ -75,7 +75,7 @@ func (pw *Password) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	var pwStr string
 	err := json.UnmarshalDecode(dec, &pwStr)
 	if err != nil {
-		return errors.New("fail to parse the \"password\" field", err)
+		return errors.New(`fail to parse the "password" field`, err)
 	}
 
 	bs, err := hex.DecodeString(pwStr)
@@ -141,13 +141,13 @@ func (pair *TLSCertKeyPair) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	var certKeyStr string
 	err := json.UnmarshalDecode(dec, &certKeyStr)
 	if err != nil {
-		return errors.New("fail to parse the \"tls-cert-key-pair\" field", err)
+		return errors.New(`fail to parse the "tls-cert-key-pair" field`, err)
 	}
 
 	certKeyPairs := strings.Split(certKeyStr, " ")
 	if len(certKeyPairs) != 2 {
-		return errors.New("the certificate and key file's paths must be separated by whitespace," +
-			" e.g., \"tls-cert-key-pair\" = \"tls_cert.pem tls_key.pem\"")
+		return errors.New("the certificate and key file's paths must be separated by whitespace, " +
+			`e.g., "tls-cert-key-pair" = "tls_cert.pem tls_key.pem"`)
 	}
 	pair.CertFile = certKeyPairs[0]
 	pair.KeyFile = certKeyPairs[1]

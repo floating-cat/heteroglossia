@@ -16,6 +16,9 @@ import (
 	"github.com/nobl9/govy/pkg/rules"
 )
 
+// Parse parses and validates the config file at configFilePath, loading the
+// routing rules data from ruleDBFilePath. An empty ruleDBFilePath skips loading
+// the rules data, and with it the validation of the rules.
 func Parse(configFilePath string, ruleDBFilePath string) (*Config, error) {
 	bs, err := ioutil.ReadFile(configFilePath)
 	if err != nil {
@@ -25,10 +28,10 @@ func Parse(configFilePath string, ruleDBFilePath string) (*Config, error) {
 	config := &Config{}
 	err = json.Unmarshal(bs, config, json.RejectUnknownMembers(true))
 	if err != nil {
-		return nil, errors.Newf("fail to pase %v: %w", configFilePath, err)
+		return nil, errors.Newf("fail to parse %v: %w", configFilePath, err)
 	}
 
-	if config.Routing != nil {
+	if config.Routing != nil && ruleDBFilePath != "" {
 		err = config.Routing.Rules.setupRulesData(ruleDBFilePath)
 	}
 	if err != nil {
@@ -87,7 +90,7 @@ func validate(config *Config) error {
 			Rules(govy.NewRule(func(i Inbounds) error {
 				if i.HTTPSOCKS == nil && i.Hg == nil {
 					return govy.NewRuleError(
-						"at least one of \"http-socks\" or \"hg\" must be configured", "inbound_required")
+						`at least one of "http-socks" or "hg" must be configured`, "inbound_required")
 				}
 				return nil
 			})),
@@ -143,7 +146,7 @@ func validate(config *Config) error {
 							}
 							if proxyNode.TCPPort == nil {
 								return govy.NewRuleError(fmt.Sprintf(
-									"requires each outbound to define a \"tcp-port\" for %q protocol, "+
+									`requires each outbound to define a "tcp-port" for %q protocol, `+
 										"but 'outbounds.%v' doesn't have one", tcp, name),
 									"outbound_tcp_port_required")
 							}
@@ -172,7 +175,7 @@ func validate(config *Config) error {
 				}
 				if _, ok := config.Outbounds[policy]; !ok {
 					return govy.NewRuleError(fmt.Sprintf(
-						"must be \"direct\", \"reject\", \"final\" or an outbound name (%v)", outboundNames),
+						`must be "direct", "reject", "final" or an outbound name (%v)`, outboundNames),
 						"rule_policy_invalid")
 				}
 				return nil
@@ -194,7 +197,7 @@ func validate(config *Config) error {
 				}
 				if _, ok := config.Outbounds[final]; !ok {
 					return govy.NewRuleError(fmt.Sprintf(
-						"must be \"%v\", \"%v\", or an outbound name (%v)",
+						`must be "%v", "%v", or an outbound name (%v)`,
 						DirectPolicy, RejectPolicy, outboundNames),
 						"final_invalid")
 				}

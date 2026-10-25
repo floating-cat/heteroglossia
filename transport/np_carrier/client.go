@@ -63,7 +63,7 @@ func NewClient(proxyNode *conf.ProxyNode, tlsKeyLog bool) (transport.Client, err
 	}
 	return &client{
 		serverHostWithPort: netutil.JoinHostPort(proxyNode.Host, proxyNode.TLSPort),
-		basicAuthToken:     basicAuthPrefix + basicAuthToken(proxyNode.Password[:]),
+		basicAuthToken:     basicAuthPrefix + basicAuthToken(proxyNode.Password),
 		tlsConfig:          tlsConfig,
 		transport:          tr,
 	}, nil

@@ -4,6 +4,8 @@
 logs/
 hg_client
 hg_server
+hg_client_info
+hg_server_info
 heteroglossia
 
 dist/

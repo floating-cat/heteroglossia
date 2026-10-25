@@ -30,12 +30,20 @@ const DefaultDomainIPSetRulesDBFileName = "domain-ip-set-rules.db"
 func main() {
 	args := cli.Parse()
 	var ruleDBFilePath = args.RulesDBFile
-	if ruleDBFilePath == "" {
+	if args.ShowInfo {
+		// The connection info doesn't need the rules data, so don't require the
+		// rules DB file to exist.
+		ruleDBFilePath = ""
+	} else if ruleDBFilePath == "" {
 		ruleDBFilePath = filepath.Join(filepath.Dir(args.ConfigFile), DefaultDomainIPSetRulesDBFileName)
 	}
 	config, err := conf.Parse(args.ConfigFile, ruleDBFilePath)
 	if err != nil {
 		errors.PrintNoStack(err)
+		osutil.Exit(1)
+	}
+	if args.ShowInfo {
+		cli.PrintInfo(os.Stdout, args.ConfigFile, config)
 		return
 	}
 

@@ -15,16 +15,22 @@ func Parse() Args {
 	fs.BoolVar(&showVersion, "v", false, "")
 	var rulesDBFile string
 	fs.StringVar(&rulesDBFile, "db", "", "")
+	var showInfo bool
+	fs.BoolVar(&showInfo, "info", false, "")
+	fs.BoolVar(&showInfo, "i", false, "")
 	fs.Usage = func() {
 		usage := fmt.Sprintf(`%v
-Usage: %v [CONFIG_FILE]
+Usage: %[2]v [CONFIG_FILE]
+       %[2]v -db DB_FILE CONFIG_FILE
+       %[2]v --info CONFIG_FILE
 
-Positional arguments:
+Positional argument:
   CONFIG_FILE            config file to use
 
 Options:
   -db DB_FILE            domain & IP set rules database file to use
   -h, --help             display this help and exit
+  -i, --info             display connection info of CONFIG_FILE and exit
   -v, --version          display version and exit`, AppName+"(hg) "+Version, AppName)
 		_, _ = fmt.Fprintln(fs.Output(), usage)
 	}
@@ -38,13 +44,14 @@ Options:
 		fs.Usage()
 		osutil.Exit(0)
 	}
-
-	return Args{ConfigFile: fs.Arg(0), RulesDBFile: rulesDBFile}
+	return Args{ConfigFile: fs.Arg(0), RulesDBFile: rulesDBFile, ShowInfo: showInfo}
 }
 
 type Args struct {
 	ConfigFile  string
 	RulesDBFile string
+	// ShowInfo reports whether to print ConfigFile's connection info and exit.
+	ShowInfo bool
 }
 
 const AppName = "heteroglossia"

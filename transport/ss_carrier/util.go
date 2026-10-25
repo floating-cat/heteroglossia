@@ -3,6 +3,7 @@ package ss_carrier
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"encoding/base64"
 	"encoding/binary"
 	"math/rand/v2"
 	"sort"
@@ -15,10 +16,19 @@ import (
 	"lukechampine.com/blake3"
 )
 
-const gcmTagOverhead = 16
+const (
+	gcmTagOverhead = 16
+
+	// Method is the Shadowsocks 2022 method name that clients need to use.
+	Method = "2022-blake3-aes-128-gcm"
+)
 
 func toShadowsocksSharedKey(password *conf.Password) []byte {
 	return passwordutil.Derive(password[:], "hg/shadowsocks/auth-shared-key/v1")
+}
+
+func AuthPassword(password *conf.Password) string {
+	return base64.StdEncoding.EncodeToString(toShadowsocksSharedKey(password))
 }
 
 func generateSalt(preSharedKey []byte) []byte {

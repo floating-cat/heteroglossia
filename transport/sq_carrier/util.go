@@ -10,10 +10,13 @@ import (
 
 func toSunnyQUICAuthHash(password *conf.Password) [64]byte {
 	var key [64]byte
-	derived := passwordutil.DeriveBase64(password[:], "hg/sunnyquic/auth-password/v1")
-	sum := sha256.Sum256([]byte(passwordutil.DefaultUsername + ":" + derived))
+	sum := sha256.Sum256([]byte(passwordutil.DefaultUsername + ":" + AuthPassword(password)))
 	copy(key[:], sum[:])
 	return key
+}
+
+func AuthPassword(password *conf.Password) string {
+	return passwordutil.DeriveBase64(password[:], "hg/sunnyquic/auth-password/v1")
 }
 
 // toStatelessResetKey deterministically derives the QUIC stateless reset key

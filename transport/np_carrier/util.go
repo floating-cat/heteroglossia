@@ -6,6 +6,7 @@ import (
 	"math/rand/v2"
 	"strings"
 
+	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/util/passwordutil"
 )
 
@@ -62,7 +63,10 @@ func generatePaddingHeader(request bool) string {
 	return string(buf)
 }
 
-func basicAuthToken(password []byte) string {
-	derived := passwordutil.DeriveBase64(password, "hg/naiveproxy/auth-password/v1")
-	return base64.StdEncoding.EncodeToString([]byte(passwordutil.DefaultUsername + ":" + derived))
+func basicAuthToken(password *conf.Password) string {
+	return base64.StdEncoding.EncodeToString([]byte(passwordutil.DefaultUsername + ":" + AuthPassword(password)))
+}
+
+func AuthPassword(password *conf.Password) string {
+	return passwordutil.DeriveBase64(password[:], "hg/naiveproxy/auth-password/v1")
 }
