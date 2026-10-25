@@ -58,9 +58,9 @@ func newServerConn(tcpConn *net.TCPConn, preSharedKey []byte, aeadOverhead int, 
 }
 
 const (
-	maxPaddingSize = 900
-	// https://github.com/Shadowsocks-NET/shadowsocks-specs/blob/60c3f41461a303ba3d7f8837065294699b1e0526/2022-1-shadowsocks-2022-edition.md#312-format
+	maxPaddingLen = 900
 	// A payload chunk can have up to 0xFFFF (65,535) bytes of unencrypted payload.
+	// https://github.com/Shadowsocks-NET/shadowsocks-specs/blob/main/2022-1-shadowsocks-2022-edition.md#312-format
 	maxChunkSize           = 65535
 	clientStreamHeaderType = 0
 	serverStreamHeaderType = 1
@@ -105,24 +105,24 @@ func (c *conn) Write(p []byte) (n int, err error) {
 }
 
 func (c *conn) writeClientFirstPayload(payload []byte) error {
-	payloadSize := len(payload)
-	var paddingSize, reqPaddingAndPayloadSize int
-	if payloadSize <= 0 {
-		// https://github.com/Shadowsocks-NET/shadowsocks-specs/blob/60c3f41461a303ba3d7f8837065294699b1e0526/2022-1-shadowsocks-2022-edition.md#313-detection-prevention
+	payloadLen := len(payload)
+	var paddingLen, reqPaddingAndPayloadLen int
+	if payloadLen <= 0 {
 		// In a request header, either initial payload or padding MUST be
 		// present. When making a request header, if payload is not available,
 		// add non-zero random length padding.
-		paddingSize = rand.N(maxPaddingSize) + 1
-		reqPaddingAndPayloadSize = paddingSize
+		// https://github.com/Shadowsocks-NET/shadowsocks-specs/blob/main/2022-1-shadowsocks-2022-edition.md#313-detection-prevention
+		paddingLen = rand.N(maxPaddingLen) + 1
+		reqPaddingAndPayloadLen = paddingLen
 	} else {
-		paddingSize = 0
-		reqPaddingAndPayloadSize = payloadSize
+		paddingLen = 0
+		reqPaddingAndPayloadLen = payloadLen
 	}
 
 	reqPaddingOrPayloadStart := socks.SOCKSLikeAddrSizeInBytes(c.accessAddr) + lenFieldSize
-	reqVarLenHeaderSize := reqPaddingOrPayloadStart + reqPaddingAndPayloadSize
+	reqVarLenHeaderLen := reqPaddingOrPayloadStart + reqPaddingAndPayloadLen
 	reqVarLenHeaderEncryptedStart := c.saltSize + reqFixedLenHeaderSize + c.aeadOverhead
-	reqHeaderEncryptedBs := pool.Get(reqVarLenHeaderEncryptedStart + reqVarLenHeaderSize + c.aeadOverhead)
+	reqHeaderEncryptedBs := pool.Get(reqVarLenHeaderEncryptedStart + reqVarLenHeaderLen + c.aeadOverhead)
 	defer pool.Put(reqHeaderEncryptedBs)
 
 	// Request fixed-length header
@@ -138,7 +138,7 @@ func (c *conn) writeClientFirstPayload(payload []byte) error {
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	err = binary.Write(reqFixedLenHeaderBuf, binary.BigEndian, uint16(reqVarLenHeaderSize))
+	err = binary.Write(reqFixedLenHeaderBuf, binary.BigEndian, uint16(reqVarLenHeaderLen))
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -152,16 +152,16 @@ func (c *conn) writeClientFirstPayload(payload []byte) error {
 	reqVarLenHeaderBs := reqHeaderEncryptedBs[reqVarLenHeaderEncryptedStart:]
 	reqVarLenHeaderBuf := bytes.NewBuffer(reqVarLenHeaderBs[:0])
 	socks.WriteSOCKSLikeAddr(reqVarLenHeaderBuf, c.accessAddr)
-	err = binary.Write(reqVarLenHeaderBuf, binary.BigEndian, uint16(paddingSize))
+	err = binary.Write(reqVarLenHeaderBuf, binary.BigEndian, uint16(paddingLen))
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	if payloadSize <= 0 {
-		padding := reqVarLenHeaderBuf.AvailableBuffer()[:paddingSize]
+	if payloadLen <= 0 {
+		padding := reqVarLenHeaderBuf.AvailableBuffer()[:paddingLen]
 		_ = randutil.RandBytes(padding)
 		reqVarLenHeaderBuf.Write(padding)
 	} else {
-		reqVarLenHeaderBuf.Write(payload[:payloadSize])
+		reqVarLenHeaderBuf.Write(payload[:payloadLen])
 	}
 
 	copy(reqHeaderEncryptedBs, c.clientSalt)
@@ -186,9 +186,9 @@ First response stream
 +--------+------------------------+---------------------------+
 */
 func (c *conn) writeServerFirstPayload(payload []byte) error {
-	payloadSize := len(payload)
+	payloadLen := len(payload)
 	respPayloadEncryptedStart := c.saltSize + reqFixedLenHeaderSize + c.saltSize + c.aeadOverhead
-	respSaltWithFixedLenHeaderAndPayloadEncryptedBs := pool.Get(respPayloadEncryptedStart + payloadSize + c.aeadOverhead)
+	respSaltWithFixedLenHeaderAndPayloadEncryptedBs := pool.Get(respPayloadEncryptedStart + payloadLen + c.aeadOverhead)
 	defer pool.Put(respSaltWithFixedLenHeaderAndPayloadEncryptedBs)
 	respSaltWithFixedLenHeaderAndPayloadEncryptedBuf := bytes.NewBuffer(respSaltWithFixedLenHeaderAndPayloadEncryptedBs[:0])
 	serverSalt := generateSalt(c.preSharedKey)
@@ -206,11 +206,11 @@ func (c *conn) writeServerFirstPayload(payload []byte) error {
 		return errors.WithStack(err)
 	}
 	respSaltWithFixedLenHeaderAndPayloadEncryptedBuf.Write(c.clientSalt)
-	err = binary.Write(respSaltWithFixedLenHeaderAndPayloadEncryptedBuf, binary.BigEndian, uint16(payloadSize))
+	err = binary.Write(respSaltWithFixedLenHeaderAndPayloadEncryptedBuf, binary.BigEndian, uint16(payloadLen))
 	if err != nil {
 		return errors.WithStack(err)
 	}
-	copy(respSaltWithFixedLenHeaderAndPayloadEncryptedBuf.AvailableBuffer()[c.aeadOverhead:c.aeadOverhead+payloadSize], payload)
+	copy(respSaltWithFixedLenHeaderAndPayloadEncryptedBuf.AvailableBuffer()[c.aeadOverhead:c.aeadOverhead+payloadLen], payload)
 
 	serverAEAD, err := aeadCipher(c.preSharedKey, serverSalt)
 	if err != nil {
@@ -220,8 +220,8 @@ func (c *conn) writeServerFirstPayload(payload []byte) error {
 
 	respFixedLenHeaderEncryptedBs := respSaltWithFixedLenHeaderAndPayloadEncryptedBs[c.saltSize:]
 	c.encryptInPlace(respFixedLenHeaderEncryptedBs[:reqFixedLenHeaderSize+c.saltSize])
-	respVarLenHeaderEncryptedBs := respSaltWithFixedLenHeaderAndPayloadEncryptedBs[respPayloadEncryptedStart:]
-	c.encryptInPlace(respVarLenHeaderEncryptedBs[:payloadSize])
+	respPayloadEncryptedBs := respSaltWithFixedLenHeaderAndPayloadEncryptedBs[respPayloadEncryptedStart:]
+	c.encryptInPlace(respPayloadEncryptedBs[:payloadLen])
 	_, err = c.TCPConn.Write(respSaltWithFixedLenHeaderAndPayloadEncryptedBs)
 	if err != nil {
 		return err
@@ -269,8 +269,8 @@ func (c *conn) readOrWriteTo(b []byte, w io.Writer) (n int, err error) {
 	if err != nil {
 		return 0, err
 	}
-	payloadSize := int(binary.BigEndian.Uint16(payloadLenEncryptedBs))
-	return c.copyReadPayloadEncrypted(b, w, payloadSize)
+	payloadLen := int(binary.BigEndian.Uint16(payloadLenEncryptedBs))
+	return c.copyReadPayloadEncrypted(b, w, payloadLen)
 }
 
 func (c *conn) readServerFirstPayload(b []byte, w io.Writer) (int, error) {
@@ -293,11 +293,11 @@ func (c *conn) readServerFirstPayload(b []byte, w io.Writer) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	respPayloadSize, err := c.validateFixedHeaderAndReturnLen(respFixedLenHeaderEncryptedBs)
+	respPayloadLen, err := c.validateFixedHeaderAndReturnLen(respFixedLenHeaderEncryptedBs)
 	if err != nil {
 		return 0, err
 	}
-	return c.copyReadPayloadEncrypted(b, w, respPayloadSize)
+	return c.copyReadPayloadEncrypted(b, w, respPayloadLen)
 }
 
 func (c *conn) readClientFirstPayload() error {
@@ -305,9 +305,9 @@ func (c *conn) readClientFirstPayload() error {
 	var err error
 	defer func() {
 		if err != nil {
-			// https://github.com/Shadowsocks-NET/shadowsocks-specs/blob/main/2022-1-shadowsocks-2022-edition.md#313-detection-prevention
 			// To consistently send RST even when the received buffer is empty,
 			// set 'SO_LINGER' to true with a zero timeout, then close the socket.
+			// https://github.com/Shadowsocks-NET/shadowsocks-specs/blob/main/2022-1-shadowsocks-2022-edition.md#313-detection-prevention
 			err = c.TCPConn.SetLinger(0)
 			if err != nil {
 				log.WarnWithError("fail to set SO_LINGER", err)
@@ -340,12 +340,12 @@ func (c *conn) readClientFirstPayload() error {
 	if err != nil {
 		return err
 	}
-	reqVarLenHeaderSize, err := c.validateFixedHeaderAndReturnLen(reqFixedLenHeaderEncryptedBs)
+	reqVarLenHeaderLen, err := c.validateFixedHeaderAndReturnLen(reqFixedLenHeaderEncryptedBs)
 	if err != nil {
 		return err
 	}
 
-	reqVarLenHeaderEncryptedBs := pool.Get(reqVarLenHeaderSize + c.aeadOverhead)
+	reqVarLenHeaderEncryptedBs := pool.Get(reqVarLenHeaderLen + c.aeadOverhead)
 	defer pool.Put(reqVarLenHeaderEncryptedBs)
 	_, err = ioutil.ReadFull(c.TCPConn, reqVarLenHeaderEncryptedBs)
 	if err != nil {
@@ -362,11 +362,11 @@ func (c *conn) readClientFirstPayload() error {
 	}
 	c.accessAddr = accessAddr
 
-	// https://github.com/Shadowsocks-NET/shadowsocks-specs/blob/main/2022-1-shadowsocks-2022-edition.md#312-format
 	// Servers MUST reject the request if the variable-length header chunk
 	// does not contain payload and the padding length is 0. Servers MUST
 	// enforce that the request header (including padding) does not extend
 	// beyond the header chunks.
+	// https://github.com/Shadowsocks-NET/shadowsocks-specs/blob/main/2022-1-shadowsocks-2022-edition.md#312-format
 	if reqVarLenHeaderReader.Len() <= lenFieldSize {
 		return errors.New("client payload and the padding length are both 0 in request variable-length header")
 	}
@@ -375,17 +375,17 @@ func (c *conn) readClientFirstPayload() error {
 		return err
 	}
 	paddingLen := int(binary.BigEndian.Uint16(paddingLenBs))
-	remainSize := reqVarLenHeaderReader.Len()
-	if remainSize < paddingLen {
+	remainLen := reqVarLenHeaderReader.Len()
+	if remainLen < paddingLen {
 		return errors.Newf("expect %v padding byte(s), but only have %v remain bytes in request header",
-			paddingLen, remainSize)
+			paddingLen, remainLen)
 	}
 	_, err = c.copyReadPayload([]byte{}, reqVarLenHeaderReader.Bytes()[paddingLen:])
 	return err
 }
 
-func (c *conn) copyReadPayloadEncrypted(b []byte, w io.Writer, payloadSize int) (int, error) {
-	payloadEncryptedBs := pool.Get(payloadSize + c.aeadOverhead)
+func (c *conn) copyReadPayloadEncrypted(b []byte, w io.Writer, payloadLen int) (int, error) {
+	payloadEncryptedBs := pool.Get(payloadLen + c.aeadOverhead)
 	defer pool.Put(payloadEncryptedBs)
 	_, err := ioutil.ReadFull(c.TCPConn, payloadEncryptedBs)
 	if err != nil {
@@ -396,17 +396,17 @@ func (c *conn) copyReadPayloadEncrypted(b []byte, w io.Writer, payloadSize int) 
 		return 0, err
 	}
 	if w != nil {
-		return ioutil.Write(w, payloadEncryptedBs[:payloadSize])
+		return ioutil.Write(w, payloadEncryptedBs[:payloadLen])
 	}
-	return c.copyReadPayload(b, payloadEncryptedBs[:payloadSize])
+	return c.copyReadPayload(b, payloadEncryptedBs[:payloadLen])
 }
 
 func (c *conn) copyReadPayload(b []byte, payloadBs []byte) (int, error) {
 	n := copy(b, payloadBs)
-	payloadSize := len(payloadBs)
-	if n < payloadSize {
-		readerBuf := make([]byte, payloadSize-n)
-		copy(readerBuf, payloadBs[n:payloadSize])
+	payloadLen := len(payloadBs)
+	if n < payloadLen {
+		readerBuf := make([]byte, payloadLen-n)
+		copy(readerBuf, payloadBs[n:payloadLen])
 		c.readerBuf = readerBuf
 	}
 	return n, nil
@@ -454,8 +454,8 @@ func (c *conn) validateFixedHeaderAndReturnLen(fixedLenHeaderBs []byte) (int, er
 		lenStart = typeWithTimestampSize
 	}
 
-	respPayloadSizeBs := fixedLenHeaderBs[lenStart:]
-	return int(binary.BigEndian.Uint16(respPayloadSizeBs)), nil
+	lenBs := fixedLenHeaderBs[lenStart:]
+	return int(binary.BigEndian.Uint16(lenBs)), nil
 }
 
 func (c *conn) ReadFrom(r io.Reader) (n int64, err error) {

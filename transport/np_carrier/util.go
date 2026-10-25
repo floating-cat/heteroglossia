@@ -25,7 +25,7 @@ const (
 	// is filled with a sequence of symbols that are not Huffman coded and are
 	// pseudo-random enough to avoid being indexed. The length of the padding
 	// sequence is randomly distributed in [16, 32] (request) or [30, 62] (response).
-	// https://github.com/klzgrad/naiveproxy/tree/0539676ac91d9607caa00869b709e66643b91ac5#h2-headers-frame-padding
+	// https://github.com/klzgrad/naiveproxy/#h2-headers-frame-padding
 	minReqPaddingHeaderLen  = 16
 	maxReqPaddingHeaderLen  = 32
 	minRespPaddingHeaderLen = 30

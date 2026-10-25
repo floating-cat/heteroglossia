@@ -147,8 +147,8 @@ func (s *Server) ServeAuthenticated(ctx context.Context, r *bufio.Reader, conn n
 		return errors.WithStack(err)
 	}
 
-	unreadSize := r.Buffered()
-	unreadBs, err := r.Peek(unreadSize)
+	unreadLen := r.Buffered()
+	unreadBs, err := r.Peek(unreadLen)
 	if err != nil {
 		return errors.WithStack(err)
 	}

@@ -7,7 +7,7 @@ const (
 	// split into several reads or writes.
 	// firstPaddings is chosen to be 8 to flatten the packet length
 	// distribution spikes formed from common initial handshakes
-	// https://github.com/klzgrad/naiveproxy/tree/0539676ac91d9607caa00869b709e66643b91ac5#h2-headers-frame-padding
+	// https://github.com/klzgrad/naiveproxy/#proxy-payload-padding
 	maxPaddingSize         = 255
 	maxOriginalPayloadSize = 65535
 	firstPaddings          = 8

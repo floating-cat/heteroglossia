@@ -148,14 +148,14 @@ func consumeCIDRsBytes(cidrsBytes []byte, ipv4 bool, tag string, consume func(ip
 		ipNumber = 6
 	}
 	if len(cidrsBytes)%cidrSize != 0 {
-		return errors.Newf("invalid IPv%v CIDR bytes length %v when querying IP set rules by tag %v",
+		return errors.Newf("invalid IPv%v CIDR bytes size %v when querying IP set rules by tag %v",
 			ipNumber, len(cidrsBytes), tag)
 	}
 
 	for i := 0; i < len(cidrsBytes); i += cidrSize {
 		ip, ok := netip.AddrFromSlice(cidrsBytes[i : i+cidrSize-1])
 		if !ok {
-			return errors.Newf("invalid IP address length %v in the CIDR %v", cidrSize-1, cidrSize)
+			return errors.Newf("invalid IP address size %v in the CIDR %v", cidrSize-1, cidrSize)
 		}
 
 		bits := int(cidrsBytes[i+cidrSize-1])

@@ -9,7 +9,6 @@ import (
 	pool "github.com/libp2p/go-buffer-pool"
 )
 
-// https://github.com/klzgrad/naiveproxy#proxy-payload-padding
 // NaïveProxy proxies bidirectional streams through HTTP/2 (or HTTP/3) CONNECT
 // tunnels. The bidirectional streams operate in a sequence of reads and writes
 // of data. The first kFirstPaddings (8) reads and writes in a bidirectional
@@ -22,6 +21,7 @@ import (
 //  uint8_t original_data[original_data_size];
 //  uint8_t zeros[padding_size];
 // };
+// https://github.com/klzgrad/naiveproxy#proxy-payload-padding
 
 type paddingReader struct {
 	r                io.Reader
@@ -115,10 +115,10 @@ func (pw *paddingWriter) Write(p []byte) (int, error) {
 		if len(payloadChunk) > maxOriginalPayloadSize {
 			payloadChunk = payloadChunk[:maxOriginalPayloadSize]
 		}
-		paddingLen := rand.N(maxPaddingSize + 1)
-		paddingPayloadBs := pool.Get(3 + len(payloadChunk) + paddingLen)
+		paddingSize := rand.N(maxPaddingSize + 1)
+		paddingPayloadBs := pool.Get(3 + len(payloadChunk) + paddingSize)
 		binary.BigEndian.PutUint16(paddingPayloadBs[:2], uint16(len(payloadChunk)))
-		paddingPayloadBs[2] = byte(paddingLen)
+		paddingPayloadBs[2] = byte(paddingSize)
 		copy(paddingPayloadBs[3:], payloadChunk)
 		clear(paddingPayloadBs[3+len(payloadChunk):])
 

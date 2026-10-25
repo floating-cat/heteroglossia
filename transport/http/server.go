@@ -84,8 +84,8 @@ func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 		if err != nil {
 			return err
 		}
-		unreadSize := connBufReader.Buffered()
-		unreadBs, err := connBufReader.Peek(unreadSize)
+		unreadLen := connBufReader.Buffered()
+		unreadBs, err := connBufReader.Peek(unreadLen)
 		if err != nil {
 			return errors.WithStack(err)
 		}

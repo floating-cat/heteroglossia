@@ -43,7 +43,8 @@ func (s *server) ListenAndServe(ctx context.Context) error {
 	defer cancel()
 
 	// can't listen to IPv4 & IPv6 together, so also listen to IPv4 one
-	// when using '::1' or '::'. See https://github.com/golang/go/issues/9334.
+	// when using '::1' or '::'.
+	// https://github.com/golang/go/issues/9334
 	host := s.httpSOCKS.Host
 	connHandler := func(conn *net.TCPConn) {
 		err := s.serve(ctx, conn)

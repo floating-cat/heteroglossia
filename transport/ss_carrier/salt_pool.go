@@ -5,13 +5,13 @@ import (
 	"time"
 )
 
-// https://github.com/Shadowsocks-NET/shadowsocks-specs/blob/main/2022-1-shadowsocks-2022-edition.md
 // Servers MUST store all incoming salts for 60 seconds.
 // When a new TCP session is established, the first received message
 // is decrypted and its timestamp MUST be checked against system time.
 // If the time difference is within 30 seconds, then the salt is checked
 // against all stored salts. If no repeated salt is discovered, then the
 // salt is added to the pool and the session is successfully established.
+// https://github.com/Shadowsocks-NET/shadowsocks-specs/blob/main/2022-1-shadowsocks-2022-edition.md
 type saltPool[T comparable] struct {
 	pool        map[T]time.Time
 	lastCleaned time.Time
