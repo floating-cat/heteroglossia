@@ -17,11 +17,9 @@ func TestExtractHgBinaryTarGz(t *testing.T) {
 		hgBinaryName: binaryContent,
 	})
 
-	binaryPath, err := extractHgBinaryTarGz(tarGzFile)
+	binaryPath := filepath.Join(t.TempDir(), hgBinaryName)
+	err := extractHgBinaryTarGz(tarGzFile, binaryPath)
 	must.NoError(t, err)
-	defer func() {
-		_ = os.Remove(binaryPath)
-	}()
 
 	content, err := os.ReadFile(binaryPath)
 	must.NoError(t, err)
