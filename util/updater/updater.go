@@ -63,7 +63,7 @@ func updateFile(client *http.Client, filePath, fileURL, fileSHA256SumURL string)
 	if strings.HasSuffix(filename, ".tar.gz") {
 		return extractHgBinaryTarGz(file, filePath)
 	}
-	return replaceFile(file, 0666, filePath)
+	return replaceFile(file, 0644, filePath)
 }
 
 func download(client *http.Client, url string, dst io.Writer) error {
@@ -124,10 +124,16 @@ func extractHgBinaryTarGz(tarGzFile *os.File, dstFilepath string) error {
 	}
 }
 
+// replaceFile replaces dstFilepath with the content of src. The new file keeps
+// the permissions of the file it replaces, or uses perm if there's none.
 func replaceFile(src io.Reader, perm os.FileMode, dstFilepath string) error {
 	err := os.MkdirAll(filepath.Dir(dstFilepath), 0755)
 	if err != nil {
 		return errors.WithStack(err)
+	}
+	fileInfo, err := os.Stat(dstFilepath)
+	if err == nil {
+		perm = fileInfo.Mode().Perm()
 	}
 	newFilepath := dstFilepath + ".new"
 	err = writeFile(newFilepath, src, perm)
