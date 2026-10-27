@@ -43,3 +43,12 @@ func TestDomainWithTrailingDotMatch(t *testing.T) {
 		must.Eq(t, tt.expected, matcher.MatchDomain(tt.input), must.Sprintf("no match: %v", tt))
 	}
 }
+
+func TestInvalidIPCIDRRules(t *testing.T) {
+	for _, rule := range []string{"ip/foo", "cidr/foo/42"} {
+		matcher := newMatcher([]string{rule})
+		//goland:noinspection GoMaybeNil
+		err := matcher.SetupRulesData(nil)
+		must.Error(t, err)
+	}
+}

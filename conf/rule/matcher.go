@@ -67,7 +67,11 @@ func (matcher *Matcher) SetupRulesData(rulesQueryStore *DomainIPSetRulesQuerySto
 
 		case strings.HasPrefix(rule, ipPrefix):
 			ip := strings.TrimPrefix(rule, ipPrefix)
-			addr := netip.MustParseAddr(ip)
+			var addr netip.Addr
+			addr, err = netip.ParseAddr(ip)
+			if err != nil {
+				break
+			}
 			var prefix netip.Prefix
 			prefix, err = toPrefixUnmapped(addr, addr.BitLen())
 			if err != nil {
@@ -77,7 +81,11 @@ func (matcher *Matcher) SetupRulesData(rulesQueryStore *DomainIPSetRulesQuerySto
 
 		case strings.HasPrefix(rule, cidrPrefix):
 			cidr := strings.TrimPrefix(rule, cidrPrefix)
-			prefix := netip.MustParsePrefix(cidr)
+			var prefix netip.Prefix
+			prefix, err = netip.ParsePrefix(cidr)
+			if err != nil {
+				break
+			}
 			prefix, err = toPrefixUnmapped(prefix.Addr(), prefix.Bits())
 			if err != nil {
 				break
