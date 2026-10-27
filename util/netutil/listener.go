@@ -73,7 +73,7 @@ func ListenUnencryptedHTTPAndServeWithListenerCallback(ctx context.Context, addr
 		if listenerCallback != nil {
 			listenerCallback(ln)
 		}
-		server := NewUnencryptedHTTPServer(ctx, httpHandler)
+		server := newUnencryptedHTTPServer(ctx, httpHandler)
 		return server.Serve(ln)
 	}, nil)
 }

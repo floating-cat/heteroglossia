@@ -57,7 +57,7 @@ func NewHTTPServer(ctx context.Context, connContext func(ctx context.Context, c 
 	}
 }
 
-func NewUnencryptedHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
+func newUnencryptedHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
 	protocols := new(http.Protocols)
 	protocols.SetHTTP1(true)
 	protocols.SetUnencryptedHTTP2(true)
