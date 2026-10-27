@@ -12,6 +12,7 @@ import (
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/ioutil"
 	"github.com/floating-cat/heteroglossia/util/netutil"
+	"github.com/floating-cat/heteroglossia/util/strutil"
 )
 
 type SocketAddress struct {
@@ -113,21 +114,11 @@ func ToSocketAddr(host string, requirePort bool, defaultPort uint16) (*SocketAdd
 		return nil, errors.New("empty host")
 	}
 
-	if !requirePort {
-		// IPv4/domain with no port
-		if strings.IndexByte(host, ':') == -1 {
-			return toSocketAddr(host, defaultPort, false)
-		}
-
-		// IPv6 with no port
-		if host[0] == '[' && host[len(host)-1] == ']' {
-			hostWithBracket := host[1 : len(host)-1]
-			return toSocketAddr(hostWithBracket, defaultPort, true)
-		}
+	if !requirePort && !hasPort(host) {
+		host += ":" + strutil.ToA(defaultPort)
 	}
 
-	// host with port
-	host, portStr, err := net.SplitHostPort(host)
+	hostWithoutPort, portStr, err := net.SplitHostPort(host)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -135,7 +126,13 @@ func ToSocketAddr(host string, requirePort bool, defaultPort uint16) (*SocketAdd
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
-	return toSocketAddr(host, uint16(port), false)
+	return toSocketAddr(hostWithoutPort, uint16(port), host[0] == '[')
+}
+
+// Same as hasPort in net/http: an IPv6 host has a port only if a colon follows
+// the closing bracket.
+func hasPort(host string) bool {
+	return strings.LastIndexByte(host, ':') > strings.LastIndexByte(host, ']')
 }
 
 func (addr *SocketAddress) ToHostStr() string {
@@ -162,6 +159,9 @@ func toSocketAddrFromNetworkAddr(ctx context.Context, network, host string) (*So
 func toSocketAddr(host string, port uint16, ipv6Required bool) (*SocketAddress, error) {
 	ip, err := netip.ParseAddr(host)
 	if err != nil {
+		if ipv6Required {
+			return nil, errors.Newf("require IPv6 address but found a domain: %v", host)
+		}
 		return NewSocketAddressByDomain(host, port), nil
 	}
 

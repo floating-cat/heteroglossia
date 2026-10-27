@@ -10,6 +10,11 @@ import (
 	"github.com/quic-go/quic-go"
 )
 
+const (
+	IPv4Localhost        = "127.0.0.1"
+	IPv4LocalhostAnyPort = "127.0.0.1:0"
+)
+
 var (
 	// Linux uses 7200sec for tcp_keepalive_time, 75sec for tcp_keepalive_intvl,
 	// but we use much shorter times.
@@ -30,8 +35,6 @@ var (
 
 	quicMaxIdleTimeout = 60 * time.Second
 )
-
-const IPv4Localhost = "127.0.0.1"
 
 func NewHTTPClient(tr *http.Transport) *http.Client {
 	return &http.Client{Transport: tr, Timeout: httpClientTimeout}

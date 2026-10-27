@@ -1,17 +1,18 @@
 package http
 
 import (
+	"bufio"
 	"context"
 	"io"
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/floating-cat/heteroglossia/conf"
 	"github.com/floating-cat/heteroglossia/transport"
 	"github.com/floating-cat/heteroglossia/util/contextutil"
 	"github.com/floating-cat/heteroglossia/util/errors"
 	"github.com/floating-cat/heteroglossia/util/ioutil"
-	"github.com/floating-cat/heteroglossia/util/log"
 	pool "github.com/libp2p/go-buffer-pool"
 )
 
@@ -39,13 +40,12 @@ func (s *Server) ListenAndServe(context.Context) error {
 
 // Serve always consider connection persistent and take little care of HTTP
 // connection header to make the impl simper.
-// forked from https://github.com/database64128/shadowsocks-go/blob/88c2d63ccd0b022f76902195ceb1559eaf15a3a7/http/server.go
 func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 	ctx = contextutil.WithSourceAndInboundValues(ctx, conn.RemoteAddr().String(), "HTTP Proxy")
 	buf := pool.Get(ioutil.BufSize)
 	defer pool.Put(buf)
 	connBufReader := ioutil.NewBufioReader(buf, conn)
-	req, err := readRequest(connBufReader)
+	req, err := http.ReadRequest(connBufReader)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -53,21 +53,25 @@ func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 	isHTTPConnect := req.Method == http.MethodConnect
 	var targetAddr *transport.SocketAddress
 	if isHTTPConnect {
-		// There is no default port; a client MUST send the port number
-		// even if the CONNECT request is based on a URI reference that
-		// contains an authority component with an elided port. For example
-		// CONNECT server.example.com:80 HTTP/1.1
-		// Host: server.example.com
-		// A server MUST reject a CONNECT request that targets an empty
-		// or invalid port number, typically by responding with a 400
-		// (Bad Request) status code.
-		// https://datatracker.ietf.org/doc/html/rfc9110#name-connect
-		// A proxy that supports CONNECT establishes a TCP connection to the
-		// host and port identified in the ":authority" pseudo-header field.
-		// https://www.rfc-editor.org/rfc/rfc9113.html#section-8.5
+		// CONNECT uses a special form of request target, unique to this
+		// method, consisting of only the host and port number of the tunnel
+		// destination, separated by a colon. There is no default port; a
+		// client MUST send the port number even if the CONNECT request is
+		// based on a URI reference that contains an authority component with
+		// an elided port.
+		// https://www.rfc-editor.org/info/rfc9110/#section-9.3.6
 		targetAddr, err = transport.ToSocketAddr(req.URL.Host, true, 0)
 	} else {
-		targetAddr, err = transport.ToSocketAddr(req.Host, false, 80)
+		// When making a request to a proxy, other than a CONNECT or
+		// server-wide OPTIONS request, a client MUST send the target URI in
+		// "absolute-form" as the request-target.
+		// GET http://www.example.org/pub/WWW/TheProject.html HTTP/1.1
+		// When a proxy receives a request with an absolute-form of
+		// request-target, the proxy MUST ignore the received Host header field
+		// (if any) and instead replace it with the host information of the
+		// request-target.
+		// https://www.rfc-editor.org/info/rfc9112/#name-absolute-form
+		targetAddr, err = transport.ToSocketAddr(req.URL.Host, false, 80)
 	}
 	if err != nil {
 		return errors.Append(err, httpError(conn, http.StatusBadRequest, nil))
@@ -92,64 +96,71 @@ func (s *Server) Serve(ctx context.Context, conn net.Conn) error {
 		return transport.ForwardTCP(ctx, targetAddr, ioutil.NewBytesReadPreloadConn(unreadBs, conn), s.targetClient)
 	}
 
-	// relayConn reads data from the target server through forwardSrcConn
-	// and sends it back to the client that made the request through the proxy.
-	relayConn, forwardSrcConn := net.Pipe()
-	go func() {
-		buf := pool.Get(ioutil.BufSize)
-		defer pool.Put(buf)
-		relayConnBufReader := ioutil.NewBufioReader(buf, relayConn)
-		var rerr, werr error
-		var resp *http.Response
-		for {
-			removeHopByHopHeaders(req.Header)
+	return s.relay(ctx, conn, connBufReader, req, targetAddr)
+}
 
-			werr = req.Write(relayConn)
-			if werr != nil {
-				werr = errors.WithStack(werr)
-				break
-			}
-			resp, rerr = http.ReadResponse(relayConnBufReader, req)
-			if rerr != nil {
-				rerr = errors.WithStack(rerr)
-				break
-			}
-			rerr = resp.Write(conn)
-			if rerr != nil {
-				rerr = errors.WithStack(rerr)
-				break
-			}
-
-			// https://datatracker.ietf.org/doc/html/rfc9110#name-connect
-			// A tunnel is closed when a tunnel intermediary detects that
-			// either side has closed its connection: the intermediary MUST
-			// attempt to send any outstanding data that came from the closed
-			// side to the other side, close both connections, and then
-			// discard any remaining data left undelivered.
-			if req.Close || resp.Close {
-				break
-			}
-			req, werr = readRequest(connBufReader)
-			if werr != nil {
-				if errors.IsIoEof(werr) {
-					werr = nil
-				} else {
-					werr = errors.WithStack(werr)
-				}
-				break
-			}
-		}
-
-		_ = relayConn.Close()
-		if rerr != nil {
-			log.InfoWithError("fail to relay the response", rerr)
-		}
-		if werr != nil {
-			log.InfoWithError("fail to relay the request", werr)
+// relay sends req and the requests that follow it on clientConn to their
+// hosts, and writes each response back to clientConn. A client may send
+// requests for different hosts over one connection, so relay dials again
+// whenever the host changes.
+func (s *Server) relay(ctx context.Context, clientConn net.Conn, clientConnBufReader *bufio.Reader,
+	req *http.Request, targetAddr *transport.SocketAddress) error {
+	buf := pool.Get(ioutil.BufSize)
+	defer pool.Put(buf)
+	var targetConn net.Conn
+	var targetBufReader *bufio.Reader
+	var targetHost string
+	defer func() {
+		if targetConn != nil {
+			_ = targetConn.Close()
 		}
 	}()
 
-	return transport.ForwardTCP(ctx, targetAddr, forwardSrcConn, s.targetClient)
+	for {
+		host := targetAddr.ToHostStr()
+		if targetConn == nil || host != targetHost {
+			if targetConn != nil {
+				_ = targetConn.Close()
+				targetConn = nil
+			}
+			dialedConn, err := s.targetClient.DialTCP(ctx, targetAddr)
+			if err != nil {
+				return errors.Append(err, httpError(clientConn, http.StatusBadGateway, nil))
+			}
+			targetConn, targetHost = dialedConn, host
+			targetBufReader = ioutil.NewBufioReader(buf, targetConn)
+		}
+
+		removeHopByHopHeaders(req.Header)
+		err := req.Write(targetConn)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		resp, err := http.ReadResponse(targetBufReader, req)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		removeHopByHopHeaders(resp.Header)
+		err = resp.Write(clientConn)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		if req.Close || resp.Close {
+			return nil
+		}
+
+		req, err = http.ReadRequest(clientConnBufReader)
+		if err != nil {
+			if errors.IsIoEof(err) {
+				return nil
+			}
+			return errors.WithStack(err)
+		}
+		targetAddr, err = transport.ToSocketAddr(req.URL.Host, false, 80)
+		if err != nil {
+			return errors.Append(err, httpError(clientConn, http.StatusBadRequest, nil))
+		}
+	}
 }
 
 func parse(r *http.Request) (username, password string, ok bool) {
@@ -161,18 +172,24 @@ func parse(r *http.Request) (username, password string, ok bool) {
 }
 
 func removeHopByHopHeaders(header http.Header) {
-	connectionHeader := header["Connection"]
-	for i := range connectionHeader {
-		header.Del(connectionHeader[i])
+	// https://www.rfc-editor.org/info/rfc2616/#section-13.5.1
+	for _, value := range header["Connection"] {
+		for field := range strings.SplitSeq(value, ",") {
+			field = strings.TrimSpace(field)
+			if field != "" {
+				header.Del(field)
+			}
+		}
 	}
-	delete(header, "Connection")
-	delete(header, "Keep-Alive")
-	delete(header, "Proxy-Authenticate")
-	delete(header, "Proxy-Authorization")
-	delete(header, "TE")
-	delete(header, "Trailers")
-	delete(header, "Transfer-Encoding")
-	delete(header, "Upgrade")
+	header.Del("Connection")
+	header.Del("Keep-Alive")
+	header.Del("Proxy-Authenticate")
+	header.Del("Proxy-Authorization")
+	header.Del("TE")
+	// Some older RFCs use "Trailers", which is a typo.
+	header.Del("Trailer")
+	header.Del("Transfer-Encoding")
+	header.Del("Upgrade")
 }
 
 func httpError(w io.Writer, statusCode int, header http.Header) error {

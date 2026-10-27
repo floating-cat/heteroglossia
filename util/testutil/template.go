@@ -106,7 +106,7 @@ func TestHTTPSOCKSServer(t *testing.T, proxyScheme string,
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			proxyAddr := startProxyServer(t, newServeFunc(tt.serverAuth))
+			proxyAddr := StartProxyServer(t, newServeFunc(tt.serverAuth))
 			proxyURL := &url.URL{Scheme: proxyScheme, User: tt.clientUser, Host: proxyAddr}
 			resp, err := requestThroughProxy(proxyURL, tt.targetServer)
 			if err == nil {

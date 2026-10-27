@@ -16,6 +16,8 @@ import (
 	"github.com/shoenig/test/must"
 )
 
+const Timeout = 5 * time.Second
+
 func startTestServer(t *testing.T, newServer newServerFunc) *conf.Hg {
 	t.Helper()
 	serverConf, err := conf.Parse("../../server_example.conf.json", "../../domain-ip-set-rules-sample.db")
@@ -57,16 +59,16 @@ func startHTTPSServer() *httptest.Server {
 	return httptest.NewTLSServer(noContentHandler)
 }
 
-// startProxyServer serves every connection to a free local port with serve,
+// StartProxyServer serves every connection to a free local port with serve,
 // and returns the address of that port.
-func startProxyServer(t *testing.T, serve ServeFunc) string {
+func StartProxyServer(t *testing.T, serve ServeFunc) string {
 	t.Helper()
 	ctx := t.Context()
 	listenAddr := make(chan string, 1)
 	listenErr := make(chan error, 1)
 	go func() {
 		listenErr <- netutil.ListenTCPAndServeWithListenerCallback(ctx,
-			netutil.JoinHostPort(netutil.IPv4Localhost, 0),
+			netutil.IPv4LocalhostAnyPort,
 			func(conn *net.TCPConn) {
 				_ = serve(ctx, conn)
 				_ = conn.Close()
