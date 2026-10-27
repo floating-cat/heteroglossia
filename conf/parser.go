@@ -31,13 +31,14 @@ func Parse(configFilePath string, ruleDBFilePath string) (*Config, error) {
 		return nil, errors.Newf("fail to parse %v: %w", configFilePath, err)
 	}
 
-	if config.Routing != nil && ruleDBFilePath != "" {
+	// Validate before setting up the rules data, which needs every rule to have
+	// a "match".
+	err = validate(config)
+	if err == nil && config.Routing != nil && ruleDBFilePath != "" {
 		err = config.Routing.Rules.setupRulesData(ruleDBFilePath)
-	}
-	if err != nil {
-		err = errors.Newf("'routing': %v", err.Error())
-	} else {
-		err = validate(config)
+		if err != nil {
+			err = errors.Newf("'routing': %v", err.Error())
+		}
 	}
 	if err != nil {
 		return nil, errors.Newf("fail to parse the config file %v: %.0w", configFilePath, err)
