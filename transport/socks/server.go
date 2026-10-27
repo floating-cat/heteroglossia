@@ -194,18 +194,19 @@ Response
 +----+-----+-------+------+----------+----------+
 */
 
-var connectionCommandNotSupportedBytes = []byte{Version5, connectionCommandNotSupported, connectionReserved,
-	connectionAddressIPv4, 0, 0, 0, 0, 0}
-
-// According to the rfc1928, we need to return the source address/port that
-// SOCKS5 server used to connect to the target host, however, we just return
-// dummy values here as these values are not useful to a client, and some
-// SOCKS5 servers return the dummy values.
-// https://stackoverflow.com/q/43013695
-// https://stackoverflow.com/q/39990056
-// https://stackoverflow.com/q/72753182
-var connectionSucceededPrefix = []byte{Version5, connectionSucceeded, connectionReserved,
-	1, 0, 0, 0, 0, 0, 0}
+var (
+	// According to the rfc1928, we need to return the source address/port that
+	// SOCKS5 server used to connect to the target host, however, we just return
+	// dummy values here as these values are not useful to a client, and some
+	// SOCKS5 servers return the dummy values.
+	// https://stackoverflow.com/q/43013695
+	// https://stackoverflow.com/q/39990056
+	// https://stackoverflow.com/q/72753182
+	connectionCommandNotSupportedBytes = []byte{Version5, connectionCommandNotSupported, connectionReserved,
+		connectionAddressIPv4, 0, 0, 0, 0, 0, 0}
+	connectionSucceededBytes = []byte{Version5, connectionSucceeded, connectionReserved,
+		connectionAddressIPv4, 0, 0, 0, 0, 0, 0}
+)
 
 func (s *Server) handleClientConnectionRequest(ctx context.Context, conn net.Conn) error {
 	_, bs, err := ioutil.ReadN(conn, 3)
@@ -224,7 +225,7 @@ func (s *Server) handleClientConnectionRequest(ctx context.Context, conn net.Con
 	if err != nil {
 		return err
 	}
-	err = ioutil.Write_(conn, connectionSucceededPrefix)
+	err = ioutil.Write_(conn, connectionSucceededBytes)
 	if err != nil {
 		return err
 	}
