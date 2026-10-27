@@ -18,8 +18,8 @@ func SetSystemProxy(host string, port uint16, authInfo *conf.HTTPSOCKSAuthInfo) 
 	gnomeProxySetCommand := fmt.Sprintf(trimNewLinesForRawStringLiteral(`gsettings set org.gnome.system.proxy mode 'manual' && 
 gsettings set org.gnome.system.proxy.http host '%[1]v' && 
 gsettings set org.gnome.system.proxy.http port %[2]v && 
-gsettings set org.gnome.system.proxy.http authentication-password '%[4]v' && 
-gsettings set org.gnome.system.proxy.http authentication-user '%[5]v' && 
+gsettings set org.gnome.system.proxy.http authentication-user '%[4]v' &&
+gsettings set org.gnome.system.proxy.http authentication-password '%[5]v' && 
 gsettings set org.gnome.system.proxy.http use-authentication %[3]v && 
 gsettings set org.gnome.system.proxy.https host '%[1]v' && 
 gsettings set org.gnome.system.proxy.https port %[2]v && 
@@ -64,10 +64,10 @@ kwriteconfig6 --file kioslaverc --group 'Proxy Settings' --key socksProxy '%v'`)
 func unsetSystemProxy() {
 	log.Info("try to unset the system proxy")
 	gnomeProxyUnsetCommand := trimNewLinesForRawStringLiteral(`gsettings set org.gnome.system.proxy mode 'none' && 
-gsettings set org.gnome.system.proxy.http host '8080' && 
+gsettings set org.gnome.system.proxy.http host '' && 
 gsettings set org.gnome.system.proxy.http port 0 && 
+gsettings set org.gnome.system.proxy.http authentication-user '' &&
 gsettings set org.gnome.system.proxy.http authentication-password '' && 
-gsettings set org.gnome.system.proxy.http authentication-user '' && 
 gsettings set org.gnome.system.proxy.http use-authentication false && 
 gsettings set org.gnome.system.proxy.https host '' && 
 gsettings set org.gnome.system.proxy.https port 0 && 
