@@ -55,7 +55,7 @@ func (store *DomainIPSetRulesQueryStore) Close() {
 	_ = store.db.Close()
 }
 
-func (store *DomainIPSetRulesQueryStore) queryDomainRulesByTag(tag string, consumer func(domainType domainType, domain string)) error {
+func (store *DomainIPSetRulesQueryStore) queryDomainRulesByTag(tag string, consumer func(domainType domainType, domain string) error) error {
 	rows, err := store.db.Query(domainRulesSqlQueryTemplate, tag)
 	if err != nil {
 		return errors.WithStack(err)
@@ -76,7 +76,10 @@ func (store *DomainIPSetRulesQueryStore) queryDomainRulesByTag(tag string, consu
 
 		switch domainTypeID {
 		case domainFull, domainSuffix, domainKeyword, domainRegex:
-			consumer(domainType(domainTypeID), domain)
+			err := consumer(domainType(domainTypeID), domain)
+			if err != nil {
+				return err
+			}
 		default:
 			return errors.Newf("invalid domain type %v when querying database", domainTypeID)
 		}

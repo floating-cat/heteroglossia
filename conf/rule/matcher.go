@@ -94,25 +94,26 @@ func (matcher *Matcher) SetupRulesData(rulesQueryStore *DomainIPSetRulesQuerySto
 
 		case strings.HasPrefix(rule, domainTagPrefix):
 			domainTag := strings.TrimPrefix(rule, domainTagPrefix)
-			err = rulesQueryStore.queryDomainRulesByTag(domainTag, func(domainType domainType, domain string) {
+			err = rulesQueryStore.queryDomainRulesByTag(domainTag, func(domainType domainType, domain string) error {
 				switch domainType {
 				case domainFull:
 					matcher.domainFullAndSuffixMatcher.addDomainFullRule(domain)
 				case domainSuffix:
 					matcher.domainFullAndSuffixMatcher.addDomainSuffixRule(domain)
 				case domainKeyword:
-					regex, err = errors.WithStack2(regexp.Compile("^.*" + regexp.QuoteMeta(domain) + ".*$"))
+					regex, err := regexp.Compile("^.*" + regexp.QuoteMeta(domain) + ".*$")
 					if err != nil {
-						break
+						return err
 					}
 					domainRegexMatcher = append(domainRegexMatcher, *regex)
 				case domainRegex:
-					regex, err = regexp.Compile(domain)
+					regex, err := regexp.Compile(domain)
 					if err != nil {
-						break
+						return err
 					}
 					domainRegexMatcher = append(domainRegexMatcher, *regex)
 				}
+				return nil
 			})
 
 		case strings.HasPrefix(rule, ipSetTagPrefix):
