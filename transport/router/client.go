@@ -53,9 +53,7 @@ func NewClient(routing *conf.Routing, outbounds map[string]*conf.ProxyNode,
 	}
 	router.httpClient = transport.HTTPClientThroughRouter(router)
 	if autoUpdateRuleFiles {
-		go updater.StartUpdateCron(func() {
-			router.updateRouting()
-		})
+		go updater.StartUpdateCron(router.updateRouting)
 	}
 	return router
 }
@@ -160,10 +158,13 @@ func newCarrierClient(transport conf.TCPTransport, proxyNode *conf.ProxyNode, tl
 func (c *client) updateRouting() {
 	success, err := updater.UpdateRuleDBFile(c.ruleDBFilePath, c.httpClient)
 	if err != nil {
-		log.WarnWithError("fail to update rules' files", err)
+		log.WarnWithError("fail to update rules database file", err)
 		return
 	}
 	if !success {
+		return
+	}
+	if c.routing == nil {
 		return
 	}
 
